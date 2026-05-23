@@ -1,0 +1,68 @@
+{
+  "project_info": {
+    "project_number": "709533791846",
+    "project_id": "agrogen-crateus-2026",
+    "storage_bucket": "agrogen-crateus-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:709533791846:android:7bcbd4665a7e6156ca5fa7",
+        "android_client_info": {
+          "package_name": "com.agrogen.crateus"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "709533791846-kps9jqrjhgchcih7sjvkkaffvjg8g5i2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBD3Zu7Hp0dL3JATQN7UYVziOqG0PP0AXo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "709533791846-kps9jqrjhgchcih7sjvkkaffvjg8g5i2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:709533791846:android:587d0cd1e12d32b0ca5fa7",
+        "android_client_info": {
+          "package_name": "com.example.hackaton"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "709533791846-kps9jqrjhgchcih7sjvkkaffvjg8g5i2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBD3Zu7Hp0dL3JATQN7UYVziOqG0PP0AXo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "709533791846-kps9jqrjhgchcih7sjvkkaffvjg8g5i2.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
