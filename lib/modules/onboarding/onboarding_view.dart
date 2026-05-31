@@ -83,7 +83,8 @@ class _Step1 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final atuacao_ordenada = ["Fazendeiro", "Veterinário", "Técnico"];
+    final atuacoes = ["Veterinário", "Técnico", "Pecuarista"];
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: SingleChildScrollView(
@@ -129,64 +130,111 @@ class _Step1 extends StatelessWidget {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
             )),
-            const SizedBox(height: 16),
-
-            Obx(() => DropdownButtonFormField<String>(
-              value: controller.perfilAtuacao.value.isEmpty ? null : controller.perfilAtuacao.value,
-              hint: Text('Perfil de atuação', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
-              items: atuacao_ordenada.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
+            const SizedBox(height: 24),
+            
+            const Text('Sua Atuação', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            Obx(() => Column(
+              children: atuacoes.map((atuacao) {
+                final isSelected = controller.perfilAtuacao.value == atuacao;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: InkWell(
+                    onTap: () => controller.perfilAtuacao.value = atuacao,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.green[50] : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected ? Colors.green : Colors.grey[300]!,
+                          width: isSelected ? 2 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                            color: isSelected ? Colors.green[700] : Colors.grey,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            atuacao,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected ? Colors.green[800] : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 );
               }).toList(),
-              onChanged: (val) => controller.perfilAtuacao.value = val ?? "",
-              icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
-              decoration: InputDecoration(
-                errorText: controller.perfilError.value,
-                filled: true,
-                fillColor: Colors.white,
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.black),
-                ),
-                errorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.red),
-                ),
-                focusedErrorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.red, width: 2),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              ),
-              dropdownColor: Colors.white,
-              borderRadius: BorderRadius.circular(12),
             )),
-            const SizedBox(height: 28),
-            _buildNextButton(),
-          ],
-        ),
-      ),
-    );
-  }
+            Obx(() => controller.perfilError.value != null 
+              ? Padding(
+                  padding: const EdgeInsets.only(left: 12, top: 4),
+                  child: Text(controller.perfilError.value!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                )
+              : const SizedBox.shrink()),
+            
+            const SizedBox(height: 24),
+            
+            // Termos de Uso e Dados Pessoais
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Obx(() => Checkbox(
+                    value: controller.aceitouTermos.value,
+                    onChanged: (val) => controller.aceitouTermos.value = val ?? false,
+                    activeColor: Colors.green[700],
+                  )),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Privacidade e Segurança de Dados',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Ao prosseguir, você autoriza o AgroGen Crateús a processar seus dados para fins de gestão técnica. Garantimos a criptografia e sigilo total de suas informações pessoais e produtivas.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Obx(() => controller.termosError.value != null 
+              ? Padding(
+                  padding: const EdgeInsets.only(left: 12, top: 4),
+                  child: Text(controller.termosError.value!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                )
+              : const SizedBox.shrink()),
 
-  Widget _buildPerfilOption(String option) {
-    return InkWell(
-      onTap: () {
-        controller.perfilAtuacao.value = option;
-        controller.isPerfilPickerOpen.value = false;
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Text(
-          option,
-          style: const TextStyle(fontSize: 16),
+            const SizedBox(height: 28),
+            Row(
+              children: [
+                Expanded(child: _buildBackButton()),
+                const SizedBox(width: 16),
+                Expanded(child: _buildNextButton()),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
         ),
       ),
     );
@@ -217,18 +265,18 @@ class _Step2 extends StatelessWidget {
             const SizedBox(height: 16),
             Obx(() => DropdownButtonFormField<String>(
               value: controller.localidade.value.isEmpty ? null : controller.localidade.value,
-              hint: Text('Localidade', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
+              hint: Text('Localidade / Distrito', style: TextStyle(color: Colors.grey[600], fontSize: 16)),
               items: [
                 "Assis", "Crateús (distrito-sede)", "Curral Velho", "Ibiapaba",
                 "Irapuã", "Lagoa das Pedras", "Montenebo", "Oiticica",
-                "Poti", "Realejo", "Santana", "Santo Antônio", "Tucuns"
+                "Poti", "Realejo", "Santana", "Santo Antônio", "Tucuns", "Outro..."
               ].map((String value) {
                 return DropdownMenuItem<String>(
                   value: value,
                   child: Text(value),
                 );
               }).toList(),
-              onChanged: (val) => controller.localidade.value = val ?? "",
+              onChanged: (val) => controller.setLocalidade(val ?? ""),
               icon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
               decoration: InputDecoration(
                 errorText: controller.localidadeError.value,
@@ -255,6 +303,16 @@ class _Step2 extends StatelessWidget {
               dropdownColor: Colors.white,
               borderRadius: BorderRadius.circular(12),
             )),
+            Obx(() => controller.isOutroDistrito.value 
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 16.0),
+                  child: _buildTextField(
+                    controller: controller.outroDistritoController,
+                    hint: 'Digite o nome do seu Distrito',
+                    errorText: controller.outroDistritoError,
+                  ),
+                )
+              : const SizedBox.shrink()),
             const SizedBox(height: 28),
             Row(
               children: [
@@ -264,23 +322,6 @@ class _Step2 extends StatelessWidget {
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLocalidadeOption(String option) {
-    return InkWell(
-      onTap: () {
-        controller.localidade.value = option;
-        controller.isLocalidadePickerOpen.value = false;
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Text(
-          option,
-          style: const TextStyle(fontSize: 16),
         ),
       ),
     );

@@ -13,11 +13,42 @@ class RebanhoView extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.green[800],
         elevation: 0,
-        title: const Text('Meus Rebanhos', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Obx(() {
+          final isSelecting = controller.selectedHerds.isNotEmpty;
+          return Text(
+            isSelecting ? "${controller.selectedHerds.length} selecionados" : 'Meus Rebanhos',
+            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          );
+        }),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Get.back(),
+          icon: Obx(() => Icon(controller.selectedHerds.isNotEmpty ? Icons.close : Icons.arrow_back, color: Colors.white)),
+          onPressed: () {
+            if (controller.selectedHerds.isNotEmpty) {
+              controller.clearSelection();
+            } else {
+              Get.back();
+            }
+          },
         ),
+        actions: [
+          Obx(() => controller.selectedHerds.isNotEmpty 
+            ? Row(
+                children: [
+                  Checkbox(
+                    value: controller.isAllSelected,
+                    onChanged: (val) => controller.toggleSelectAll(),
+                    activeColor: Colors.white,
+                    checkColor: Colors.red[800],
+                    side: const BorderSide(color: Colors.white, width: 2),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.white),
+                    onPressed: () => _showDeleteConfirmation(),
+                  ),
+                ],
+              )
+            : const SizedBox.shrink()),
+        ],
         bottom: TabBar(
           controller: controller.tabController,
           indicatorColor: Colors.white,
@@ -31,125 +62,255 @@ class RebanhoView extends StatelessWidget {
           ],
         ),
       ),
-      body: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: TabBarView(
-            controller: controller.tabController,
+      body: Column(
+        children: [
+          // BARRA DE PESQUISA E FILTROS SEMPRE VISÍVEIS
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            color: Colors.white,
+            child: Column(
+              children: [
+                TextField(
+                  onChanged: (v) => controller.searchText.value = v,
+                  decoration: InputDecoration(
+                    hintText: "Buscar rebanho por nome ou galpão...",
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    filled: true,
+                    fillColor: Colors.grey[100],
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: ["Todos", "Extensivo", "Semiextensivo", "Intensivo"].map((f) {
+                      return Obx(() {
+                        bool isSelected = controller.selectedFilter.value == f;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                            label: Text(f, style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.grey[700],
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            )),
+                            selected: isSelected,
+                            onSelected: (val) => controller.selectedFilter.value = f,
+                            selectedColor: Colors.green[800],
+                            backgroundColor: Colors.grey[200],
+                            checkmarkColor: Colors.white,
+                            shape: StadiumBorder(side: BorderSide(color: isSelected ? Colors.green[800]! : Colors.transparent)),
+                          ),
+                        );
+                      });
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          Expanded(
+            child: TabBarView(
+              controller: controller.tabController,
+              children: [
+                _buildRebanhoList(category: 'Bovino', labelPlural: 'Bovinos', icon: FontAwesomeIcons.cow),
+                _buildRebanhoList(category: 'Ovino', labelPlural: 'Ovinos', icon: Icons.pets),
+                _buildRebanhoList(category: 'Caprino', labelPlural: 'Caprinos', icon: Icons.agriculture),
+              ],
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: Obx(() => controller.selectedHerds.isEmpty 
+        ? FloatingActionButton(
+            onPressed: () => Get.toNamed('/cadastro-rebanho', arguments: controller.currentCategory),
+            backgroundColor: Colors.green[800],
+            child: const Icon(Icons.add, color: Colors.white),
+          )
+        : const SizedBox.shrink()),
+    );
+  }
+
+  Widget _buildRebanhoList({required String category, required String labelPlural, required dynamic icon}) {
+    return Obx(() {
+      // Forçamos a escuta das variáveis que mudam a lista
+      final searchText = controller.searchText.value;
+      final filter = controller.selectedFilter.value;
+      final page = controller.currentPage.value;
+      
+      // Pegamos a lista específica da categoria para evitar que uma aba interfira na outra
+      List<Map<String, dynamic>> fullList;
+      if (category == 'Bovino') fullList = controller.filteredBovinos;
+      else if (category == 'Ovino') fullList = controller.filteredOvinos;
+      else fullList = controller.filteredCaprinos;
+
+      if (controller.isLoading.value) return const Center(child: CircularProgressIndicator());
+
+      if (fullList.isEmpty) {
+        return _buildEmptyState(labelPlural, icon, category);
+      }
+
+      // Paginação manual local para garantir que cada aba tenha sua view
+      int start = (page - 1) * controller.pageSize;
+      int end = start + controller.pageSize;
+      final paginatedList = fullList.sublist(start, end > fullList.length ? fullList.length : end);
+
+      return Column(
+        children: [
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: paginatedList.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 16),
+              itemBuilder: (context, index) {
+                final herd = paginatedList[index];
+                return _buildHerdCard(herd, icon);
+              },
+            ),
+          ),
+          if (fullList.length > controller.pageSize)
+            _buildPaginationControls(fullList.length),
+        ],
+      );
+    });
+  }
+
+  Widget _buildHerdCard(Map<String, dynamic> herd, dynamic icon) {
+    final int herdId = herd['id'];
+    return Obx(() {
+      final isSelected = controller.selectedHerds.contains(herdId);
+      final isSelecting = controller.selectedHerds.isNotEmpty;
+
+      return GestureDetector(
+        onLongPress: () => controller.toggleSelection(herdId),
+        onTap: () => isSelecting ? controller.toggleSelection(herdId) : Get.toNamed('/detalhes-rebanho', arguments: herd),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.green[50] : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: isSelected ? Colors.green[800]! : Colors.grey[200]!, width: isSelected ? 2 : 1),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildRebanhoList(controller.bovinos, 'Bovinos', FontAwesomeIcons.cow, 'Bovino'),
-              _buildRebanhoList(controller.ovinos, 'Ovinos', Icons.pets, 'Ovino'),
-              _buildRebanhoList(controller.caprinos, 'Caprinos', Icons.agriculture, 'Caprino'),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: Colors.green[50], borderRadius: BorderRadius.circular(12)),
+                    child: icon is IconData ? Icon(icon, color: Colors.green[800]) : FaIcon(icon, color: Colors.green[800]),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(herd['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        if (herd['location'] != null) Text(herd['location'], style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  if (isSelecting) Icon(isSelected ? Icons.check_circle : Icons.radio_button_off, color: Colors.green[800]),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildStatItem(Icons.pets, "${herd['total_animals'] ?? 0}", "Animais"),
+                  _buildStatItem(Icons.pregnant_woman, "${herd['pregnant_females'] ?? 0}", "Prenhes"),
+                  _buildStatItem(Icons.monitor_weight, "${(herd['avg_ecc'] ?? 0.0).toStringAsFixed(1)}", "ECC Médio"),
+                ],
+              )
             ],
           ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Get.toNamed('/cadastro-rebanho', arguments: controller.currentCategory),
-        backgroundColor: Colors.green[800],
-        child: const Icon(Icons.add, color: Colors.white),
+      );
+    });
+  }
+
+  Widget _buildStatItem(IconData icon, String value, String label) {
+    return Column(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+      ],
+    );
+  }
+
+  Widget _buildPaginationControls(int total) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Colors.grey[200]!))),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text("${controller.currentRangeStart}–${controller.currentRangeEnd} de $total", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          IconButton(icon: const Icon(Icons.chevron_left), onPressed: controller.currentPage.value > 1 ? controller.previousPage : null),
+          IconButton(icon: const Icon(Icons.chevron_right), onPressed: controller.currentPage.value * controller.pageSize < total ? controller.nextPage : null),
+        ],
       ),
     );
   }
 
-  Widget _buildRebanhoList(RxList<Map<String, dynamic>> list, String labelPlural, dynamic icon, String categoryKey) {
-    return Obx(() {
-      if (controller.isLoading.value) {
-        return const Center(child: CircularProgressIndicator());
-      }
+  Widget _buildEmptyState(String label, dynamic icon, String category) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon is IconData ? icon : Icons.pets, size: 64, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text("Nenhum rebanho de $label", style: const TextStyle(color: Colors.grey)),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => Get.toNamed('/cadastro-rebanho', arguments: category),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green[800]),
+            child: const Text("Cadastrar agora", style: TextStyle(color: Colors.white)),
+          )
+        ],
+      ),
+    );
+  }
 
-      if (list.isEmpty) {
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(30),
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    shape: BoxShape.circle,
-                  ),
-                  child: icon is IconData 
-                    ? Icon(icon, size: 60, color: Colors.green[200])
-                    : FaIcon(icon, size: 60, color: Colors.green[200]),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Nenhum rebanho encontrado',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Ops! Parece que você ainda não possui rebanhos de $labelPlural em sua base de dados.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                ),
-                const SizedBox(height: 40),
-                OutlinedButton.icon(
-                  onPressed: () => Get.toNamed('/cadastro-rebanho', arguments: categoryKey),
-                  icon: const Icon(Icons.add, color: Colors.grey),
-                  label: Text('Cadastrar rebanho de $labelPlural'),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: Get.context!.theme.cardColor,
-                    foregroundColor: Colors.grey[700],
-                    side: BorderSide(color: Colors.grey[300]!),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ],
-            ),
+  void _showDeleteConfirmation() {
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.red),
+            const SizedBox(width: 10),
+            Obx(() => Text("Excluir ${controller.selectedHerds.length} rebanhos?")),
+          ],
+        ),
+        content: const Text("Esta ação é irreversível. Todos os animais e registros vinculados a estes rebanhos serão apagados permanentemente."),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text("CANCELAR", style: TextStyle(color: Colors.grey)),
           ),
-        );
-      }
-
-      return ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: list.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final herd = list[index];
-          final count = herd['animal_count'] ?? 0;
-          return Container(
-            decoration: BoxDecoration(
-              color: context.theme.cardColor,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              controller.deleteSelectedHerds();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.green[50],
-                  shape: BoxShape.circle,
-                ),
-                child: icon is IconData 
-                  ? Icon(icon, color: Colors.green[800], size: 24)
-                  : FaIcon(icon, color: Colors.green[800], size: 24),
-              ),
-              title: Text(
-                herd['name'],
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              subtitle: Text(
-                count == 1 ? '1 animal registrado' : '$count animais registrados',
-                style: TextStyle(color: Colors.grey[600], fontSize: 13),
-              ),
-              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-              onTap: () => Get.toNamed('/detalhes-rebanho', arguments: herd),
-            ),
-          );
-        },
-      );
-    });
+            child: const Text("SIM, EXCLUIR TUDO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 }

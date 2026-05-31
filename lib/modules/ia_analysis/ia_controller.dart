@@ -153,7 +153,7 @@ class IaController extends GetxController with GetSingleTickerProviderStateMixin
 
   Future<void> confirmAction() async {
     final db = await DatabaseHelper.instance.database;
-    await db.update('animals', {'reproductive_status': '🟢 Prenhe'}, where: 'id = ?', whereArgs: [selectedAnimal.value!['id']]);
+    await db.update('animals', {'reproductive_status': 'Prenhe'}, where: 'id = ?', whereArgs: [selectedAnimal.value!['id']]);
     await DatabaseHelper.instance.insertEvent(selectedAnimal.value!['id'], "Inseminação", "IA realizada com ${(probability.value * 100).toStringAsFixed(0)}% de chance.");
     Get.back();
     AgroAlert.show(title: "Sucesso", message: "Inseminação registrada no histórico!", isSuccess: true);

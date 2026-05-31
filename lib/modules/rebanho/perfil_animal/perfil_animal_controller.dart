@@ -3,15 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:open_filex/open_filex.dart';
 import '../../../database/database_helper.dart';
 import '../../../utils/agro_alerts.dart';
 import '../detalhes_rebanho/detalhes_rebanho_controller.dart';
 import '../rebanho_controller.dart';
 
 class PerfilAnimalController extends GetxController {
-  final Map<String, dynamic> animalInicial = Get.arguments;
+  late Map<String, dynamic> animalInicial;
   var animal = <String, dynamic>{}.obs;
   var photoPath = "".obs;
+  var pdfPath = "".obs;
   final ImagePicker _picker = ImagePicker();
 
   var isEditing = false.obs;
@@ -39,44 +42,72 @@ class PerfilAnimalController extends GetxController {
   var potentialFathers = <Map<String, dynamic>>[].obs;
   var potentialMothers = <Map<String, dynamic>>[].obs;
 
+  // Histórico e Filtros
+  var allEvents = <Map<String, dynamic>>[].obs;
+  var selectedHistoryFilter = "Todos".obs; // Todos, Nutrição, Reprodução, Saúde
+  var isLoadingHistory = false.obs;
+
   final List<String> racas = [
-    "Nativa Pura (Moxotó, Repartida, Cariri...)",
-    "Mestiço Sertanejo (Cruzamento local resistente)",
-    "Mestiço Exótico (Cruzamento focado em produção)",
-    "Exótica Pura (Saanen, Anglo-Nubiana, Holandesa...)",
-    "Sem Raça Definida (SRD / Comum)"
+    "Nativa Pura",
+    "Mestiço Sertanejo",
+    "Mestiço Exótico",
+    "Exótica Pura",
+    "SRD (Comum)"
   ];
   final List<String> paridades = ["Nulípara", "Primípara", "Multípara"];
   final List<String> dppOpcoes = ["Parto Recente", "Parto Médio", "Parto Antigo"];
-  final List<String> statusOpcoes = ["🟢 Prenhe", "🟡 Vazia / Apta", "🔵 Em Lactação"];
+  final List<String> statusOpcoes = ["Prenhe", "Vazia / Apta", "Em Lactação", "Inseminada"];
   final List<String> aptidoes = ["Rústico", "Alta produção"];
 
   @override
   void onInit() {
     super.onInit();
+    
+    // Recuperação ultra-segura de argumentos
+    final dynamic args = Get.arguments;
+    if (args != null && args is Map) {
+      animalInicial = Map<String, dynamic>.from(args);
+    } else {
+      animalInicial = {'id': 0, 'identifier': 'N/A', 'herd_id': 0, 'breed': 'SRD'};
+    }
+
     animal.value = animalInicial;
     photoPath.value = animalInicial['photo_path'] ?? "";
+    pdfPath.value = animalInicial['pdf_path'] ?? "";
     
-    // Inicializa controllers com os dados atuais
-    idCtrl = TextEditingController(text: animal['identifier']);
-    nomeAnimalCtrl = TextEditingController(text: animal['name'] ?? "");
-    racaNomeCtrl = TextEditingController(text: animal['breed_name'] ?? "");
-    pesoCtrl = TextEditingController(text: animal['weight'].toString());
-    idadeCtrl = TextEditingController(text: animal['age_months'].toString());
-    linhagemCtrl = TextEditingController(text: animal['lineage'] ?? "");
+    _initControllers();
+    _fetchCategoryAndParents();
+  }
+
+  void _initControllers() {
+    idCtrl = TextEditingController(text: animal['identifier']?.toString());
+    nomeAnimalCtrl = TextEditingController(text: animal['name']?.toString() ?? "");
+    racaNomeCtrl = TextEditingController(text: animal['breed_name']?.toString() ?? "");
+    pesoCtrl = TextEditingController(text: animal['weight']?.toString() ?? "0.0");
+    idadeCtrl = TextEditingController(text: animal['age_months']?.toString() ?? "0");
+    linhagemCtrl = TextEditingController(text: animal['lineage']?.toString() ?? "");
     fertilidadeSemenCtrl = TextEditingController(text: (animal['semen_fertility'] ?? 0.0).toString());
     
-    sexoSelecionado.value = animal['sex'] ?? "";
-    racaSelecionada.value = animal['breed'] ?? "";
-    paritySelecionada.value = animal['parity'] ?? "";
-    dppSelecionado.value = animal['dpp_status'] ?? ""; 
-    statusSelecionado.value = animal['reproductive_status'] ?? "";
-    eccValue.value = (animal['ecc'] ?? 3.0).toDouble();
-    aptidaoSelecionada.value = animal['aptitude'] ?? "";
-    idPaiSelecionado.value = animal['id_pai'] ?? "Desconhecido";
-    idMaeSelecionada.value = animal['id_mae'] ?? "Desconhecido";
+    sexoSelecionado.value = animal['sex']?.toString() ?? "";
+    racaSelecionada.value = animal['breed']?.toString() ?? "";
+    paritySelecionada.value = animal['parity']?.toString() ?? "";
+    dppSelecionado.value = animal['dpp_status']?.toString() ?? ""; 
+    statusSelecionado.value = animal['reproductive_status']?.toString() ?? "";
+    eccValue.value = double.tryParse(animal['ecc']?.toString() ?? "3.0") ?? 3.0;
+    aptidaoSelecionada.value = animal['aptitude']?.toString() ?? "";
+    idPaiSelecionado.value = animal['id_pai']?.toString() ?? "Desconhecido";
+    idMaeSelecionada.value = animal['id_mae']?.toString() ?? "Desconhecido";
+  }
 
-    _fetchCategoryAndParents();
+  Future<void> carregarDadosDoBanco(int id) async {
+    final db = await DatabaseHelper.instance.database;
+    final result = await db.query('animals', where: 'id = ?', whereArgs: [id]);
+    if (result.isNotEmpty) {
+      animal.value = Map<String, dynamic>.from(result.first);
+      photoPath.value = animal['photo_path'] ?? "";
+      pdfPath.value = animal['pdf_path'] ?? "";
+      _fetchCategoryAndParents();
+    }
   }
 
   void _fetchCategoryAndParents() async {
@@ -123,10 +154,86 @@ class PerfilAnimalController extends GetxController {
     await _updatePhotoInDatabase("");
   }
 
+  Future<void> pickPDF() async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+
+      if (result != null && result.files.single.path != null) {
+        String path = result.files.single.path!;
+        pdfPath.value = path;
+        
+        final db = await DatabaseHelper.instance.database;
+        await db.update('animals', {'pdf_path': path}, where: 'id = ?', whereArgs: [animal['id']]);
+        
+        AgroAlert.show(title: "PDF Salvo", message: "Documento de rastreabilidade vinculado!", isSuccess: true);
+        _syncWithLocalData();
+      }
+    } catch (e) {
+      AgroAlert.show(title: "Erro", message: "Falha ao selecionar arquivo: $e", isError: true);
+    }
+  }
+
+  Future<void> openPDF() async {
+    if (pdfPath.value.isNotEmpty) {
+      final result = await OpenFilex.open(pdfPath.value);
+      if (result.type != ResultType.done) {
+        AgroAlert.show(title: "Erro ao abrir", message: result.message, isError: true);
+      }
+    }
+  }
+
+  Future<void> removePDF() async {
+    pdfPath.value = "";
+    final db = await DatabaseHelper.instance.database;
+    await db.update('animals', {'pdf_path': ""}, where: 'id = ?', whereArgs: [animal['id']]);
+    _syncWithLocalData();
+  }
+
   Future<void> _updatePhotoInDatabase(String path) async {
     final db = await DatabaseHelper.instance.database;
     await db.update('animals', {'photo_path': path}, where: 'id = ?', whereArgs: [animal['id']]);
     _syncWithLocalData();
+  }
+
+  Future<void> loadAnimalHistory() async {
+    try {
+      isLoadingHistory.value = true;
+      final db = await DatabaseHelper.instance.database;
+      final List<Map<String, dynamic>> results = await db.query(
+        'animal_events',
+        where: 'animal_id = ?',
+        whereArgs: [animal['id']],
+        orderBy: 'date DESC',
+      );
+      allEvents.value = results;
+    } catch (e) {
+      print("Erro ao carregar histórico: $e");
+    } finally {
+      isLoadingHistory.value = false;
+    }
+  }
+
+  List<Map<String, dynamic>> get filteredHistory {
+    if (selectedHistoryFilter.value == "Todos") return allEvents;
+
+    return allEvents.where((e) {
+      final type = e['type']?.toString() ?? "";
+      
+      if (selectedHistoryFilter.value == "Nutrição") {
+        return type == "Produção de Leite" || type == "Pesagem e Escore";
+      }
+      if (selectedHistoryFilter.value == "Reprodução") {
+        return type == "Inseminação Artificial" || type == "Nascimento" || 
+               type == "Diagnóstico de Toque" || type == "Aborto / Perda Gestacional";
+      }
+      if (selectedHistoryFilter.value == "Saúde") {
+        return type == "Vacinação" || type == "Medicamento";
+      }
+      return true;
+    }).toList();
   }
 
   Future<void> saveChanges() async {
@@ -164,6 +271,42 @@ class PerfilAnimalController extends GetxController {
     isEditing.value = false;
     _syncWithLocalData();
     AgroAlert.show(title: "Sucesso", message: "Dados do animal atualizados!", isSuccess: true);
+  }
+
+  Future<List<Map<String, dynamic>>> getAvailableHerds() async {
+    final db = await DatabaseHelper.instance.database;
+    return await db.query(
+      'herds',
+      where: 'category = ? AND id != ?',
+      whereArgs: [animal['category'], animal['herd_id']],
+    );
+  }
+
+  Future<void> relocateAnimal(int targetHerdId, String targetHerdName) async {
+    try {
+      final db = await DatabaseHelper.instance.database;
+      await db.update(
+        'animals',
+        {'herd_id': targetHerdId},
+        where: 'id = ?',
+        whereArgs: [animal['id']],
+      );
+
+      // Atualiza o objeto local
+      var novoAnimal = Map<String, dynamic>.from(animal.value);
+      novoAnimal['herd_id'] = targetHerdId;
+      animal.value = novoAnimal;
+
+      _syncWithLocalData();
+      Get.back(); // Fecha o seletor
+      AgroAlert.show(
+        title: "Realocado!",
+        message: "O animal foi movido para o rebanho $targetHerdName",
+        isSuccess: true,
+      );
+    } catch (e) {
+      AgroAlert.show(title: "Erro", message: "Falha ao realocar: $e", isError: true);
+    }
   }
 
   void _syncWithLocalData() {

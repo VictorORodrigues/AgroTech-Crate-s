@@ -7,7 +7,8 @@ import '../rebanho_controller.dart';
 class CadastroRebanhoController extends GetxController {
   // Rebanho
   final nomeRebanhoController = TextEditingController();
-  var categoriaSelecionada = "".obs; 
+  final localizacaoController = TextEditingController();
+  var categoriaSelecionada = "Bovino".obs; 
   var manejoSelecionado = "Extensivo".obs; // Extensivo, Semiextensivo, Intensivo
   
   // Erros Rebanho
@@ -17,9 +18,13 @@ class CadastroRebanhoController extends GetxController {
   final List<String> categorias = ["Bovino", "Ovino", "Caprino"];
   final List<String> manejos = ["Extensivo", "Semiextensivo", "Intensivo"];
 
-  void setCategoria(String? value) {
-    categoriaSelecionada.value = value ?? "";
+  void setCategoria(String value) {
+    categoriaSelecionada.value = value;
     categoriaError.value = null;
+  }
+
+  void setManejo(String value) {
+    manejoSelecionado.value = value;
   }
 
   bool _validarRebanho() {
@@ -54,6 +59,7 @@ class CadastroRebanhoController extends GetxController {
         nomeRebanhoController.text.trim(),
         categoriaSelecionada.value,
         management: manejoSelecionado.value,
+        location: localizacaoController.text.trim(),
       );
 
       if (Get.isRegistered<RebanhoController>()) {
@@ -70,6 +76,7 @@ class CadastroRebanhoController extends GetxController {
   @override
   void onClose() {
     nomeRebanhoController.dispose();
+    localizacaoController.dispose();
     super.onClose();
   }
 }

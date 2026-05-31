@@ -30,38 +30,57 @@ class CadastroRebanhoView extends StatelessWidget {
                 const SizedBox(height: 16),
                 _buildTextField(
                   controller.nomeRebanhoController, 
-                  "Nome do Rebanho",
+                  "Nome do Rebanho (Ex: Lote Elite)",
                   errorText: controller.nomeRebanhoError
                 ),
                 const SizedBox(height: 16),
-                Obx(() => _buildDropdown(
-                  label: "Categoria",
-                  value: controller.categoriaSelecionada.value,
-                  items: controller.categorias,
-                  onChanged: controller.setCategoria,
-                  errorText: controller.categoriaError.value
-                )),
-                const SizedBox(height: 16),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () => _showManagementInfo(),
-                    icon: Icon(Icons.info_outline, size: 16, color: Colors.green[800]),
-                    label: Text("Entenda os tipos de manejo", 
-                      style: TextStyle(fontSize: 12, color: Colors.green[800], fontWeight: FontWeight.bold)),
-                    style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  ),
+                _buildTextField(
+                  controller.localizacaoController, 
+                  "Localização / Galpão (Opcional)",
                 ),
-                const SizedBox(height: 4),
-                Obx(() => _buildDropdown(
-                  label: "Tipo de Manejo",
-                  value: controller.manejoSelecionado.value,
-                  items: controller.manejos,
-                  onChanged: (v) => controller.manejoSelecionado.value = v ?? "Extensivo",
+                const SizedBox(height: 24),
+                
+                // CATEGORIA (RADIO)
+                _buildLabel("Categoria do Rebanho"),
+                const SizedBox(height: 12),
+                Obx(() => Row(
+                  children: controller.categorias.map((cat) => Expanded(
+                    child: _buildRadioTile(
+                      label: cat,
+                      value: cat,
+                      groupValue: controller.categoriaSelecionada.value,
+                      onChanged: (v) => controller.setCategoria(v!),
+                    ),
+                  )).toList(),
+                )),
+                const SizedBox(height: 24),
+
+                // TIPO DE MANEJO (RADIO)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildLabel("Tipo de Manejo"),
+                    TextButton.icon(
+                      onPressed: () => _showManagementInfo(),
+                      icon: Icon(Icons.info_outline, size: 14, color: Colors.green[800]),
+                      label: Text("Entenda as diferenças", 
+                        style: TextStyle(fontSize: 11, color: Colors.green[800], fontWeight: FontWeight.bold)),
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Obx(() => Column(
+                  children: controller.manejos.map((man) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _buildRadioTile(
+                      label: man,
+                      value: man,
+                      groupValue: controller.manejoSelecionado.value,
+                      onChanged: (v) => controller.setManejo(v!),
+                      isFullWidth: true,
+                    ),
+                  )).toList(),
                 )),
                 
                 const SizedBox(height: 40),
@@ -98,14 +117,14 @@ class CadastroRebanhoView extends StatelessWidget {
     final decoration = InputDecoration(
       hintText: hint,
       filled: true,
-      fillColor: context.theme.brightness == Brightness.dark ? Colors.white10 : Colors.white,
+      fillColor: context.theme.brightness == Brightness.dark ? Colors.white10 : Colors.grey[50],
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey[300]!),
+        borderSide: BorderSide(color: Colors.grey[200]!),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.black),
+        borderSide: BorderSide(color: Colors.green[800]!),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -129,26 +148,45 @@ class CadastroRebanhoView extends StatelessWidget {
     ));
   }
 
-  Widget _buildDropdown({required String label, required String value, required List<String> items, required Function(String?) onChanged, String? errorText}) {
-    final context = Get.context!;
-    return DropdownButtonFormField<String>(
-      value: value.isEmpty ? null : value,
-      hint: Text(label),
-      decoration: InputDecoration(
-        errorText: errorText,
-        filled: true,
-        fillColor: context.theme.brightness == Brightness.dark ? Colors.white10 : Colors.white,
-        enabledBorder: OutlineInputBorder(
+  Widget _buildLabel(String text) {
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
+    );
+  }
+
+  Widget _buildRadioTile({
+    required String label,
+    required String value,
+    required String groupValue,
+    required Function(String?) onChanged,
+    bool isFullWidth = false,
+  }) {
+    final isSelected = value == groupValue;
+    return GestureDetector(
+      onTap: () => onChanged(value),
+      child: Container(
+        margin: isFullWidth ? EdgeInsets.zero : const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.green[50] : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey[300]!),
+          border: Border.all(
+            color: isSelected ? Colors.green[800]! : Colors.grey[300]!,
+            width: isSelected ? 2 : 1,
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.black),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.green[800] : Colors.grey[700],
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 13,
+            ),
+          ),
         ),
       ),
-      items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, overflow: TextOverflow.ellipsis))).toList(),
-      onChanged: onChanged,
     );
   }
 
@@ -156,11 +194,11 @@ class CadastroRebanhoView extends StatelessWidget {
     Get.dialog(
       AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.info_outline, color: Colors.green),
-            SizedBox(width: 10),
-            Text("Tipos de Manejo"),
+            Icon(Icons.info_outline, color: Colors.green[800]),
+            const SizedBox(width: 10),
+            const Text("Guia de Manejo"),
           ],
         ),
         content: SingleChildScrollView(
@@ -168,18 +206,18 @@ class CadastroRebanhoView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildInfoItem("Extensivo", "Os animais vivem soltos no pasto e buscam seu próprio alimento na Caatinga/pastagem nativa. Baixo custo de produção."),
+              _buildInfoItem("Extensivo", "O sistema tradicional do Sertão. Os bichos ficam soltos no pasto nativo e buscam comida sozinhos. Baixo custo, mas exige maior controle sanitário contra predadores e sede."),
               const SizedBox(height: 16),
-              _buildInfoItem("Semiextensivo", "Os animais passam parte do dia no pasto e recebem reforço de ração ou silagem no cocho em horários específicos."),
+              _buildInfoItem("Semiextensivo", "O animal pasta, mas também recebe um reforço alimentar no cocho . Ideal para manter o peso na seca."),
               const SizedBox(height: 16),
-              _buildInfoItem("Intensivo", "Criação em confinamento total ou áreas pequenas com alimentação controlada no cocho. Foco em alta produtividade."),
+              _buildInfoItem("Intensivo", "Criação 100% no cocho ou em piquetes pequenos irrigados. Foco total em ganho de peso rápido e máxima produção de leite. Custo maior, retorno mais rápido."),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Get.back(),
-            child: const Text("Entendi", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+            child: Text("Entendi", style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold)),
           ),
         ],
       ),

@@ -69,6 +69,11 @@ class HomeView extends StatelessWidget {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.qr_code_scanner_outlined, color: Colors.white),
+            tooltip: "Escanear Animal",
+            onPressed: () => Get.toNamed('/scanner'),
+          ),
+          IconButton(
             icon: const Icon(Icons.chat_outlined, color: Colors.white),
             onPressed: () => Get.toNamed('/chatbot'),
           ),

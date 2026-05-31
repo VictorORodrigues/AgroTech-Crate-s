@@ -24,8 +24,12 @@ import 'modules/home/home_view.dart';
 import 'modules/home/notifications_view.dart';
 import 'modules/home/tutorial_view.dart';
 import 'modules/calendar/calendar_view.dart';
+import 'modules/calendar/calendar_search_view.dart';
 import 'modules/activities_history/activities_history_view.dart';
 import 'modules/profile/profile_view.dart';
+import 'modules/scanner/animal_scanner_view.dart';
+import 'modules/activities_history/add_activity/add_activity_view.dart';
+import 'modules/activities_history/activity_details/activity_details_view.dart';
 import 'modules/home/theme_controller.dart';
 import 'modules/splash/splash_view.dart';
 
@@ -101,8 +105,12 @@ class MyApp extends StatelessWidget {
         GetPage(name: '/chatbot', page: () => ChatbotView()),
         GetPage(name: '/tutorial', page: () => TutorialView()),
         GetPage(name: '/calendar', page: () => CalendarView()),
+        GetPage(name: '/calendar-search', page: () => CalendarSearchView()),
         GetPage(name: '/activities-history', page: () => ActivitiesHistoryView()),
+        GetPage(name: '/add-activity', page: () => AddActivityView()),
+        GetPage(name: '/activity-details', page: () => ActivityDetailsView()),
         GetPage(name: '/profile', page: () => ProfileView()),
+        GetPage(name: '/scanner', page: () => AnimalScannerView()),
         GetPage(name: '/home', page: () => HomeView()),
       ],
     );

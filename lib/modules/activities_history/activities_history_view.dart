@@ -1,135 +1,89 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'activities_history_controller.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
-class Activity {
-  final String type;
-  final String animal;
-  final String detail;
-  final DateTime date;
-  final IconData icon;
-  final Color color;
-
-  Activity({
-    required this.type,
-    required this.animal,
-    required this.detail,
-    required this.date,
-    required this.icon,
-    required this.color,
-  });
-}
-
-class ActivitiesHistoryView extends StatefulWidget {
-  @override
-  State<ActivitiesHistoryView> createState() => _ActivitiesHistoryViewState();
-}
-
-class _ActivitiesHistoryViewState extends State<ActivitiesHistoryView> {
-  String selectedFilter = "Todos";
-  final TextEditingController _searchController = TextEditingController();
-
-  // Mock de dados realistas para o Hackathon
-  final List<Activity> _allActivities = [
-    Activity(
-      type: "Inseminação Artificial",
-      animal: "Vaca Sertaneja (ID 45)",
-      detail: "Reprodutor: Touro Sertão Valente | IA previu 88% de chance.",
-      date: DateTime.now(),
-      icon: Icons.pets,
-      color: Colors.green,
-    ),
-    Activity(
-      type: "Pesagem e Escore",
-      animal: "Cabra Mimosa (ID 12)",
-      detail: "Resultado: 42 kg | ECC: 3.5 (Ideal)",
-      date: DateTime.now().subtract(const Duration(days: 1, hours: 6)),
-      icon: Icons.scale_outlined,
-      color: Colors.blue,
-    ),
-    Activity(
-      type: "Vacinação Preventiva",
-      animal: "Lote: Ovinos Jovens (Lote B)",
-      detail: "Medicamento: Vacina Clostridiose",
-      date: DateTime.now().subtract(const Duration(days: 7)),
-      icon: Icons.vaccines_outlined,
-      color: Colors.red,
-    ),
-    Activity(
-      type: "Diagnóstico de Toque",
-      animal: "Cabra Estrela (ID 08)",
-      detail: "Resultado: 🟢 Confirmada Prenhe (45 dias)",
-      date: DateTime.now().subtract(const Duration(days: 12)),
-      icon: Icons.search,
-      color: Colors.orange,
-    ),
-  ];
+class ActivitiesHistoryView extends StatelessWidget {
+  final ActivitiesHistoryController controller = Get.put(ActivitiesHistoryController());
 
   @override
   Widget build(BuildContext context) {
-    final isDark = context.isDarkMode;
-
     return Scaffold(
       backgroundColor: context.theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Atividades e Histórico", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text("Manejo e Atividades", style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.green[800],
-        elevation: 0,
+        bottom: TabBar(
+          controller: controller.tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: const [
+            Tab(text: 'Bovinos'),
+            Tab(text: 'Ovinos'),
+            Tab(text: 'Caprinos'),
+          ],
+        ),
       ),
       body: Column(
         children: [
-          // 1. TOPO: BUSCA E FILTROS
+          // BARRA DE BUSCA E FILTROS
           Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.green[800],
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            color: Colors.white,
             child: Column(
               children: [
                 TextField(
-                  controller: _searchController,
-                  style: const TextStyle(color: Colors.white),
+                  onChanged: (v) => controller.searchText.value = v,
                   decoration: InputDecoration(
-                    hintText: "Buscar animal...",
-                    hintStyle: const TextStyle(color: Colors.white60),
-                    prefixIcon: const Icon(Icons.search, color: Colors.white70),
+                    hintText: "Buscar por brinco, nome ou tipo...",
+                    prefixIcon: const Icon(Icons.search),
                     filled: true,
-                    fillColor: Colors.white10,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
+                    fillColor: Colors.grey[100],
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
                     contentPadding: const EdgeInsets.symmetric(vertical: 0),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: ["Todos", "Reprodução", "Saúde", "Pesagem"].map((filter) {
-                      bool isSelected = selectedFilter == filter;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: FilterChip(
-                          label: Text(filter, style: TextStyle(color: isSelected ? Colors.green[800] : Colors.white70, fontSize: 12)),
-                          selected: isSelected,
-                          onSelected: (val) => setState(() => selectedFilter = filter),
-                          backgroundColor: Colors.white12,
-                          selectedColor: Colors.white,
-                          showCheckmark: false,
-                          shape: StadiumBorder(side: BorderSide(color: isSelected ? Colors.white : Colors.white24)),
-                        ),
-                      );
+                    children: ["Todos", "Nutrição", "Reprodução", "Saúde"].map((cat) {
+                      return Obx(() {
+                        bool isSelected = controller.selectedCategory.value == cat;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                            label: Text(cat, style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.grey[700],
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            )),
+                            selected: isSelected,
+                            onSelected: (val) => controller.selectedCategory.value = cat,
+                            selectedColor: Colors.green[800],
+                            backgroundColor: Colors.grey[200],
+                            checkmarkColor: Colors.white,
+                            shape: StadiumBorder(side: BorderSide(color: isSelected ? Colors.green[800]! : Colors.transparent)),
+                          ),
+                        );
+                      });
                     }).toList(),
                   ),
                 ),
               ],
             ),
           ),
-
-          // 2. LINHA DO TEMPO (TIMELINE)
+          
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              itemCount: _allActivities.length,
-              itemBuilder: (context, index) {
-                return _buildTimelineItem(_allActivities[index], index == _allActivities.length - 1);
-              },
+            child: TabBarView(
+              controller: controller.tabController,
+              children: [
+                _buildEventList(controller.bovinoEvents),
+                _buildEventList(controller.ovinoEvents),
+                _buildEventList(controller.caprinoEvents),
+              ],
             ),
           ),
         ],
@@ -137,39 +91,70 @@ class _ActivitiesHistoryViewState extends State<ActivitiesHistoryView> {
     );
   }
 
-  Widget _buildTimelineItem(Activity activity, bool isLast) {
+  Widget _buildEventList(RxList<Map<String, dynamic>> events) {
+    return Obx(() {
+      if (controller.isLoading.value) return const Center(child: CircularProgressIndicator());
+      if (events.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.history_outlined, size: 60, color: Colors.grey[300]),
+              const SizedBox(height: 16),
+              const Text("Nenhuma atividade registrada", style: TextStyle(color: Colors.grey)),
+            ],
+          ),
+        );
+      }
+
+      return ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: events.length,
+        itemBuilder: (context, index) {
+          final e = events[index];
+          return GestureDetector(
+            onTap: () => Get.toNamed('/activity-details', arguments: e),
+            child: _buildTimelineItem(e, index == events.length - 1),
+          );
+        },
+      );
+    });
+  }
+
+  Widget _buildTimelineItem(Map<String, dynamic> event, bool isLast) {
+    final type = event['type']?.toString() ?? "";
+    final color = _getColorByType(type);
+    final icon = _getIconByType(type);
+
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Traço e Bolinha da Timeline
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(color: activity.color.withOpacity(0.1), shape: BoxShape.circle),
-                  child: Icon(activity.icon, color: activity.color, size: 20),
+                  width: 35,
+                  height: 35,
+                  decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+                  child: Icon(icon, color: color, size: 18),
                 ),
                 if (!isLast)
                   Expanded(
-                    child: Container(width: 2, color: Colors.grey[300]),
+                    child: Container(width: 2, color: Colors.grey[200]),
                   ),
               ],
             ),
           ),
-          
-          // Card de Conteúdo
           Expanded(
             child: Container(
-              margin: const EdgeInsets.only(right: 16, bottom: 24),
+              margin: const EdgeInsets.only(bottom: 20, right: 8),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: context.theme.cardColor,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10)],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,42 +163,28 @@ class _ActivitiesHistoryViewState extends State<ActivitiesHistoryView> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        DateFormat('dd/MM/yyyy').format(activity.date),
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+                        DateFormat('dd/MM/yyyy HH:mm').format(DateTime.parse(event['date'])),
+                        style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
                       ),
-                      Text(
-                        DateFormat('HH:mm').format(activity.date),
-                        style: const TextStyle(fontSize: 10, color: Colors.grey),
-                      ),
+                      const Icon(Icons.chevron_right, size: 14, color: Colors.grey),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
+                  Text(type, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
                   Text(
-                    activity.type,
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                    "Animal: ${event['identifier']} (${event['animal_name'] ?? 'S/N'})",
+                    style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold, fontSize: 12),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "Animal: ${activity.animal}",
-                    style: const TextStyle(fontSize: 13, color: Colors.green, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    activity.detail,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600], height: 1.4),
-                  ),
-                  const Divider(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton.icon(
-                        onPressed: () => Get.snackbar("Ação", "Em breve você poderá editar este registro."),
-                        icon: const Icon(Icons.edit_outlined, size: 14),
-                        label: const Text("Editar", style: TextStyle(fontSize: 12)),
-                        style: TextButton.styleFrom(foregroundColor: Colors.grey),
-                      ),
-                    ],
-                  ),
+                  _buildEventSpecificSummary(event),
+                  if (event['description'] != null && event['description'].isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      event['description'], 
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -222,4 +193,56 @@ class _ActivitiesHistoryViewState extends State<ActivitiesHistoryView> {
       ),
     );
   }
+
+  Widget _buildEventSpecificSummary(Map<String, dynamic> e) {
+    final type = e['type']?.toString() ?? "";
+    String summary = "";
+
+    if (type == "Pesagem e Escore") {
+      summary = "Peso: ${e['text_value_1'] ?? '0'}kg → ${e['value_1'] ?? '0'}kg | ECC: ${e['value_2'] ?? '3.0'}";
+    } else if (type == "Produção de Leite") {
+      summary = "Produção: ${e['value_1'] ?? '0'}L";
+    } else if (type == "Vacinação") {
+      summary = "Vacina: ${e['text_value_1'] ?? 'N/A'}";
+    } else if (type == "Medicamento") {
+      summary = "Medicamento: ${e['text_value_1'] ?? 'N/A'}";
+    } else if (type == "Diagnóstico de Toque") {
+      summary = "Resultado: ${e['text_value_1'] ?? 'N/A'}";
+    } else if (type == "Inseminação Artificial") {
+      summary = "Tipo: ${e['text_value_1'] ?? 'IA'}";
+      if (e['text_value_1'] == "Monta") summary += " | Macho: ${e['text_value_2'] ?? 'N/A'}";
+    }
+
+    if (summary.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(summary, style: TextStyle(color: Colors.blue[800], fontSize: 11, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  Color _getColorByType(String type) {
+    if (type.contains("Inseminação")) return Colors.pink;
+    if (type.contains("Pesagem")) return Colors.blue;
+    if (type.contains("Nascimento")) return Colors.orange;
+    if (type.contains("Vacinação")) return Colors.red;
+    if (type.contains("Medicamento")) return Colors.deepOrange;
+    if (type.contains("Leite")) return Colors.teal;
+    if (type.contains("Casqueamento")) return Colors.brown;
+    if (type.contains("Tosquia")) return Colors.blueGrey;
+    return Colors.grey;
+  }
+
+  IconData _getIconByType(String type) {
+    if (type.contains("Inseminação")) return Icons.favorite_border;
+    if (type.contains("Pesagem")) return Icons.scale_outlined;
+    if (type.contains("Nascimento")) return Icons.child_care;
+    if (type.contains("Vacinação")) return Icons.vaccines_outlined;
+    if (type.contains("Medicamento")) return Icons.medication_outlined;
+    if (type.contains("Leite")) return Icons.opacity;
+    if (type.contains("Casqueamento")) return Icons.cleaning_services;
+    if (type.contains("Tosquia")) return Icons.content_cut;
+    return Icons.event_note;
+  }
 }
+

@@ -11,11 +11,13 @@ class OnboardingController extends GetxController {
   // Passo 1: Dados Pessoais
   final nomeController = TextEditingController();
   final cpfController = TextEditingController();
-  var perfilAtuacao = "".obs; // Veterinário ou Fazendeiro
-  var isPerfilPickerOpen = false.obs; // Controla se o seletor está aberto abaixo do input
+  var perfilAtuacao = "".obs; // Veterinário, Técnico ou Pecuarista
+  var aceitouTermos = false.obs; // Aceite dos termos de dados pessoais
+  var isPerfilPickerOpen = false.obs; 
   var nomeError = Rxn<String>();
   var cpfError = Rxn<String>();
   var perfilError = Rxn<String>();
+  var termosError = Rxn<String>();
 
   final cpfMask = MaskTextInputFormatter(
     mask: '###.###.###-##',
@@ -24,14 +26,25 @@ class OnboardingController extends GetxController {
 
   // Passo 2: Sua Propriedade
   final nomePropriedadeController = TextEditingController();
-  var localidade = "".obs; // São Paulo, Ceará ou Roraima
-  var isLocalidadePickerOpen = false.obs;
+  final outroDistritoController = TextEditingController();
+  var localidade = "".obs; 
+  var isOutroDistrito = false.obs;
   var nomePropriedadeError = Rxn<String>();
   var localidadeError = Rxn<String>();
+  var outroDistritoError = Rxn<String>();
 
   // Passo 3: Seu Rebanho
   var especiesSelecionadas = <String>{}.obs; // Bovinos, Ovinos, Caprinos
   var finalidadeProducao = <String>{}.obs; // Leite, Carne
+
+  void setLocalidade(String val) {
+    localidade.value = val;
+    isOutroDistrito.value = (val == "Outro...");
+    if (!isOutroDistrito.value) {
+      outroDistritoController.clear();
+      outroDistritoError.value = null;
+    }
+  }
 
   void nextStep() {
     if (currentPage.value == 0) {
@@ -53,6 +66,9 @@ class OnboardingController extends GetxController {
     if (currentPage.value > 0) {
       currentPage.value--;
       pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.ease);
+    } else {
+      // Se estiver no passo 1, volta para a tela de login/cadastro
+      Get.offAllNamed('/login');
     }
   }
 
@@ -103,6 +119,13 @@ class OnboardingController extends GetxController {
       perfilError.value = null;
     }
 
+    if (!aceitouTermos.value) {
+      termosError.value = "Você precisa aceitar os termos para continuar";
+      isValid = false;
+    } else {
+      termosError.value = null;
+    }
+
     return isValid;
   }
 
@@ -120,6 +143,13 @@ class OnboardingController extends GetxController {
       isValid = false;
     } else {
       localidadeError.value = null;
+    }
+
+    if (isOutroDistrito.value && outroDistritoController.text.trim().isEmpty) {
+      outroDistritoError.value = "Informe o nome do distrito";
+      isValid = false;
+    } else {
+      outroDistritoError.value = null;
     }
 
     return isValid;
@@ -142,10 +172,14 @@ class OnboardingController extends GetxController {
   }
 
   void finishOnboarding() {
+    String localFinal = isOutroDistrito.value 
+        ? outroDistritoController.text.trim() 
+        : localidade.value;
+
     // Salva os dados para exibição na Home
     _storage.write('userName', nomeController.text.trim());
     _storage.write('farmName', nomePropriedadeController.text.trim());
-    _storage.write('location', localidade.value);
+    _storage.write('location', localFinal);
 
     // Salva que o onboarding foi concluído
     _storage.write('onboardingCompleted', true);
