@@ -1,8 +1,8 @@
-# Agrotech -Crateús
+# Agrotech - Crateús
 
-O que é o AgroGen?
+O que é o Agrotech?
 
-O **AgroGen** é uma plataforma de inteligência preditiva, gestão reprodutiva e rastreabilidade digital (Agro 4.0) desenvolvida especificamente para a realidade da pecuária (Bovinos, Caprinos e Ovinos) no Semiárido brasileiro. 
+O **Agrotech** é uma plataforma de inteligência preditiva, gestão reprodutiva e rastreabilidade digital (Agro 4.0) desenvolvida especificamente para a realidade da pecuária (Bovinos, Caprinos e Ovinos) no Semiárido crateuense. 
 
 Mais do que uma simples caderneta digital, o sistema atua como um **cérebro zootécnico embarcado no celular**, automatizando cálculos complexos baseados em ciclos biológicos, mitigando os impactos do estresse térmico regional (THI) e transformando dados de campo em indicadores de viabilidade econômica e evolução genética.
 
@@ -11,7 +11,7 @@ Mais do que uma simples caderneta digital, o sistema atua como um **cérebro zoo
 ## 🚀 Principais Funcionalidades
 
 ### 1. Automação de Ciclos Biológicos (Agenda Preditiva)
-O AgroGen elimina a necessidade de o produtor calcular manualmente os prazos reprodutivos. Ao registrar uma ação principal (como uma IATF ou um Parto), o aplicativo calcula e agenda de forma automatizada no calendário:
+O Agrotech elimina a necessidade de o produtor calcular manualmente os prazos reprodutivos. Ao registrar uma ação principal (como uma IATF ou um Parto), o aplicativo calcula e agenda de forma automatizada no calendário:
 * **Confirmação de Gestação:** Alertas para exames de toque ou ultrassom (30-60 dias).
 * **Retorno ao Cio:** Monitoramento crítico no 21º dia pós-manejo para identificar falhas reprodutivas precocemente.
 * **Secagem do Leite:** Avisos para interrupção de ordenha pré-parto respeitando a fisiologia de cada espécie.
