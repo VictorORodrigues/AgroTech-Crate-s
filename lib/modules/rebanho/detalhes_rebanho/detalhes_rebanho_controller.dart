@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../../database/database_helper.dart';
 import '../../../utils/agro_alerts.dart';
 import '../rebanho_controller.dart';
+import '../../../services/sync_service.dart';
 
 class DetalhesRebanhoController extends GetxController with GetSingleTickerProviderStateMixin {
   late TabController tabController;
@@ -130,6 +131,7 @@ class DetalhesRebanhoController extends GetxController with GetSingleTickerProvi
       if (Get.isRegistered<RebanhoController>()) {
         Get.find<RebanhoController>().carregarRebanhos();
       }
+      SyncService.instance.syncLocalToCloud();
       AgroAlert.show(title: "Realocados!", message: "Animais movidos para $targetHerdName", isSuccess: true);
     } catch (e) {
       AgroAlert.show(title: "Erro", message: "Falha ao mover animais: $e", isError: true);
@@ -156,15 +158,15 @@ class DetalhesRebanhoController extends GetxController with GetSingleTickerProvi
   Future<void> deleteSelectedAnimals() async {
     try {
       isLoading.value = true;
-      final db = await DatabaseHelper.instance.database;
       for (int id in selectedAnimals) {
-        await db.delete('animals', where: 'id = ?', whereArgs: [id]);
+        await DatabaseHelper.instance.deleteAnimal(id);
       }
       clearAnimalSelection();
       await carregarDados();
       if (Get.isRegistered<RebanhoController>()) {
         Get.find<RebanhoController>().carregarRebanhos();
       }
+      SyncService.instance.syncLocalToCloud();
       AgroAlert.show(title: "Sucesso", message: "Animais excluídos com sucesso!", isSuccess: true);
     } catch (e) {
       AgroAlert.show(title: "Erro", message: "Falha ao excluir animais: $e", isError: true);
@@ -174,7 +176,7 @@ class DetalhesRebanhoController extends GetxController with GetSingleTickerProvi
   }
 
   List<Map<String, dynamic>> get filteredAnimais {
-    return animais.where((a) {
+    final filtered = animais.where((a) {
       final nameMatches = (a['name'] ?? "").toString().toLowerCase().contains(searchText.value.toLowerCase());
       final idMatches = a['identifier'].toString().toLowerCase().contains(searchText.value.toLowerCase());
       final breedMatches = (a['breed_name'] ?? a['breed'] ?? "").toString().toLowerCase().contains(searchText.value.toLowerCase());
@@ -184,19 +186,33 @@ class DetalhesRebanhoController extends GetxController with GetSingleTickerProvi
       // Filtro de Status Reprodutivo
       bool statusMatches = true;
       if (selectedStatusFilter.value != "Todos") {
-        if (selectedStatusFilter.value == "Prenhe") {
-          statusMatches = a['reproductive_status'] == 'Prenhe';
-        } else if (selectedStatusFilter.value == "Vazia / Apta") {
-          statusMatches = a['reproductive_status'] == 'Vazia / Apta';
-        } else if (selectedStatusFilter.value == "Em Lactação") {
-          statusMatches = a['reproductive_status'] == 'Em Lactação';
-        } else if (selectedStatusFilter.value == "Inseminada") {
-          statusMatches = a['reproductive_status'] == 'Inseminada';
-        }
+        statusMatches = a['reproductive_status'] == selectedStatusFilter.value;
       }
 
       return (nameMatches || idMatches || breedMatches) && sexMatches && statusMatches;
     }).toList();
+
+    // Ordenação: Ativos primeiro, depois Inativos (Vendido > Abatido > Óbito)
+    filtered.sort((a, b) {
+      final statusA = a['vital_status'] ?? "Ativo";
+      final statusB = b['vital_status'] ?? "Ativo";
+      
+      if (statusA != statusB) {
+        if (statusA == "Ativo") return -1;
+        if (statusB == "Ativo") return 1;
+
+        // Ambos são inativos, aplicar ordem personalizada: Vendido > Abatido > Óbito
+        final priority = {"Vendido": 1, "Abatido": 2, "Óbito": 3};
+        int pA = priority[statusA] ?? 99;
+        int pB = priority[statusB] ?? 99;
+        
+        if (pA != pB) return pA.compareTo(pB);
+      }
+      
+      return a['identifier'].toString().compareTo(b['identifier'].toString());
+    });
+
+    return filtered;
   }
 
   Future<void> carregarDados() async {
@@ -269,12 +285,12 @@ class DetalhesRebanhoController extends GetxController with GetSingleTickerProvi
   }
 
   Future<void> excluirAnimal(int id) async {
-    final db = await DatabaseHelper.instance.database;
-    await db.delete('animals', where: 'id = ?', whereArgs: [id]);
+    await DatabaseHelper.instance.deleteAnimal(id);
     await carregarDados();
     if (Get.isRegistered<RebanhoController>()) {
       Get.find<RebanhoController>().carregarRebanhos();
     }
+    SyncService.instance.syncLocalToCloud();
   }
 
   Future<void> editarRebanho(String novoNome, String novaLocalizacao, String novoManejo) async {
@@ -291,11 +307,11 @@ class DetalhesRebanhoController extends GetxController with GetSingleTickerProvi
   }
 
   Future<void> excluirRebanho() async {
-    final db = await DatabaseHelper.instance.database;
-    await db.delete('herds', where: 'id = ?', whereArgs: [rebanho['id']]);
+    await DatabaseHelper.instance.deleteHerd(rebanho['id']);
     if (Get.isRegistered<RebanhoController>()) {
       Get.find<RebanhoController>().carregarRebanhos();
     }
+    SyncService.instance.syncLocalToCloud();
     Get.back(); // Volta para a lista de rebanhos
     AgroAlert.show(title: "Sucesso", message: "Rebanho excluído permanentemente.", isSuccess: true);
   }

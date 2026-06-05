@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_storage/get_storage.dart';
 import '../auth/auth_controller.dart';
+import '../navigation/navigation_controller.dart';
 import 'home_controller.dart';
 import '../../services/sync_service.dart';
 import '../../utils/agro_alerts.dart';
@@ -19,35 +21,70 @@ class HomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final User? user = FirebaseAuth.instance.currentUser;
-    final String photoUrl = user?.photoURL ?? "";
-    
-    final String userName = _storage.read('userName') ?? user?.displayName ?? "Usuário";
-    final String farmName = _storage.read('farmName') ?? "Sua Fazenda";
-    final String location = _storage.read('location') ?? "Crateús, CE";
-    final String email = user?.email ?? "";
+    String getGreeting() {
+      var hour = DateTime.now().hour;
+      if (hour < 12) return 'Bom dia';
+      if (hour < 18) return 'Boa tarde';
+      return 'Boa noite';
+    }
 
     return Scaffold(
-      key: _scaffoldKey,
       backgroundColor: context.theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.green[800],
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        toolbarHeight: 120,
+        toolbarHeight: 110,
         leadingWidth: 85,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16.0),
-          child: Center(
-            child: GestureDetector(
-              onTap: () => _scaffoldKey.currentState?.openDrawer(),
-              child: CircleAvatar(
-                radius: 30,
-                backgroundColor: Colors.white24,
-                backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
-                child: photoUrl.isEmpty
-                    ? const Icon(Icons.person_outline, color: Colors.white, size: 30)
-                    : null,
-              ),
+        automaticallyImplyLeading: false,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.green[900]!,
+                Colors.green[800]!,
+                Colors.green[700]!,
+              ],
+            ),
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
+          ),
+        ),
+        leading: GestureDetector(
+          onTap: () => Get.find<NavigationController>().changePage(4),
+          child: Padding(
+            padding: const EdgeInsets.only(left: 16.0),
+            child: Center(
+              child: Obx(() {
+                final localPath = controller.userPhotoPath.value;
+                final networkUrl = controller.networkPhotoUrl.value;
+                bool useLocal = localPath.isNotEmpty && File(localPath).existsSync();
+                final ImageProvider? provider = useLocal 
+                    ? FileImage(File(localPath)) 
+                    : (networkUrl.isNotEmpty ? NetworkImage(networkUrl) : null);
+
+                return Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                    image: provider != null 
+                        ? DecorationImage(image: provider, fit: BoxFit.cover) 
+                        : null,
+                  ),
+                  child: provider == null 
+                      ? const Icon(Icons.person, color: Colors.white, size: 30)
+                      : null,
+                );
+              }),
             ),
           ),
         ),
@@ -56,275 +93,287 @@ class HomeView extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'Olá, $userName!',
+              '${getGreeting()},',
               style: const TextStyle(
-                  color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500),
             ),
-            Text(
-              '$farmName, $location',
+            Obx(() => Text(
+              controller.firstName.value,
               style: const TextStyle(
-                  color: Colors.white70, fontSize: 13, fontWeight: FontWeight.normal),
-            ),
+                  color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+            )),
+            const SizedBox(height: 2),
+            Obx(() => Row(
+              children: [
+                const Icon(Icons.location_on, color: Colors.white60, size: 12),
+                const SizedBox(width: 4),
+                Text(
+                  '${controller.farmName.value} • ${controller.userLocation.value}',
+                  style: const TextStyle(
+                      color: Colors.white60, fontSize: 11, fontWeight: FontWeight.normal),
+                ),
+              ],
+            )),
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.qr_code_scanner_outlined, color: Colors.white),
-            tooltip: "Escanear Animal",
-            onPressed: () => Get.toNamed('/scanner'),
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            decoration: BoxDecoration(
+              color: Colors.white12,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 22),
+                  onPressed: () {
+                    Get.toNamed('/notifications');
+                    controller.notificationsController.markAllAsRead();
+                  },
+                ),
+                Obx(() {
+                  final count = controller.notificationsController.unreadCount.value;
+                  if (count == 0) return const SizedBox.shrink();
+                  return Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Text(
+                        count.toString(),
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.chat_outlined, color: Colors.white),
-            onPressed: () => Get.toNamed('/chatbot'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_none_outlined, color: Colors.white),
-            onPressed: () => Get.toNamed('/notifications'),
-          ),
-          const SizedBox(width: 8),
         ],
         centerTitle: false,
       ),
-      drawer: Drawer(
-        child: Column(
-          children: [
-            UserAccountsDrawerHeader(
-              decoration: BoxDecoration(color: Colors.green[800]),
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: Colors.white,
-                backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
-                child: photoUrl.isEmpty
-                    ? Icon(Icons.person, size: 40, color: Colors.green[800])
-                    : null,
-              ),
-              accountName: Text(userName, style: const TextStyle(fontWeight: FontWeight.bold)),
-              accountEmail: Text(email),
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings_outlined),
-              title: const Text('Configurações'),
-              onTap: () => _showSettingsBottomSheet(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text('Meu Perfil'),
-              onTap: () {
-                Get.back();
-                Get.toNamed('/profile');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.history),
-              title: const Text('Histórico de Manejo'),
-              onTap: () => Get.back(),
-            ),
-            ListTile(
-              leading: const Icon(Icons.help_outline),
-              title: const Text('Tutorial'),
-              onTap: () {
-                Get.back();
-                Get.toNamed('/tutorial');
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Sair da Conta', style: TextStyle(color: Colors.red)),
-              onTap: () {
-                Get.back();
-                authController.logout();
-              },
-            ),
-          ],
-        ),
-      ),
-      body: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // Card de Monitoramento em Tempo Real
-                Container(
-                  decoration: BoxDecoration(
-                    color: context.theme.cardColor,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Monitoramento em Tempo Real',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            Obx(() => Text(
-                                  controller.localizacao.value,
-                                  style: TextStyle(fontSize: 12, color: Colors.green[700], fontWeight: FontWeight.w500),
-                                )),
-                          ],
+      body: RefreshIndicator(
+        onRefresh: controller.refreshHome,
+        color: Colors.green[800],
+        child: Center(
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // Card de Monitoramento em Tempo Real
+                  Container(
+                    decoration: BoxDecoration(
+                      color: context.theme.cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
-                      ),
-                      const Divider(height: 1),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 24),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Obx(() => _buildMonitorItem(Icons.thermostat, controller.temperatura.value, 'Temperatura')),
-                            ),
-                            _buildDivider(),
-                            Expanded(
-                              child: Obx(() => _buildMonitorItem(Icons.water_drop_outlined, controller.umidade.value, 'Umidade')),
-                            ),
-                            _buildDivider(),
-                            Expanded(
-                              child: Obx(() => _buildMonitorItem(
-                                    Icons.warning_amber_rounded,
-                                    controller.thi.value,
-                                    'THI',
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Monitoramento em Tempo Real',
+                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              Obx(() => Row(
+                                children: [
+                                  if (controller.isOffline.value)
+                                    const Icon(Icons.cloud_off_outlined, color: Colors.orange, size: 14),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    controller.localizacao.value,
+                                    style: TextStyle(fontSize: 12, color: controller.isOffline.value ? Colors.orange[800] : Colors.green[700], fontWeight: FontWeight.w500),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  InkWell(
+                                    onTap: () => controller.updateWeatherData(),
+                                    child: Obx(() => controller.isLoadingWeather.value 
+                                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.green))
+                                      : Icon(Icons.refresh, size: 16, color: Colors.green[800])),
+                                  ),
+                                ],
+                              )),
+                            ],
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Obx(() => _buildMonitorItem(
+                                  _getWeatherIcon(controller.climaIcon.value), 
+                                  controller.temperatura.value, 
+                                  'Temperatura'
+                                )),
+                              ),
+                              _buildDivider(),
+                              Expanded(
+                                child: Obx(() => _buildMonitorItem(Icons.water_drop_outlined, controller.umidade.value, 'Umidade')),
+                              ),
+                              _buildDivider(),
+                              Expanded(
+                                child: Obx(() => _buildMonitorItem(
+                                      Icons.warning_amber_rounded,
+                                      controller.thi.value,
+                                      'THI',
+                                      showInfo: true,
+                                    )),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            children: [
+                              Icon(Icons.access_time, size: 14, color: Colors.grey[400]),
+                              const SizedBox(width: 4),
+                              Obx(() => Text(
+                                    'Última atualização: ${controller.lastUpdate.value}',
+                                    style: TextStyle(fontSize: 11, color: Colors.grey[500]),
                                   )),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      const Divider(height: 1),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        child: Row(
-                          children: [
-                            Icon(Icons.access_time, size: 14, color: Colors.grey[400]),
-                            const SizedBox(width: 4),
-                            Obx(() => Text(
-                                  'Última atualização: ${controller.lastUpdate.value}',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                                )),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                // --- NOVO CARROSSEL DE COTAÇÕES ---
-                MarketCarousel(),
-                const SizedBox(height: 20),
-                // Três cards verdes principais empilhados verticalmente
-                _buildActionCard(
-                  title: 'Nova Análise de Prenhez com IA',
-                  subtitle: 'Analisar chance real de Inseminação',
-                  icon: Icons.psychology_outlined,
-                  isFullWidth: true,
-                  onTap: () => Get.toNamed('/ia-analysis'),
-                ),
-                const SizedBox(height: 12),
-                _buildActionCard(
-                  title: 'Ranking de Reprodutores',
-                  subtitle: 'IA de Melhoramento Genético',
-                  icon: Icons.star_border,
-                  isFullWidth: true,
-                  onTap: () => Get.toNamed('/ranking-abs'),
-                ),
-                const SizedBox(height: 12),
-                _buildActionCard(
-                  title: 'Padrões de fertilidade',
-                  subtitle: 'Módulo em breve no seu painel',
-                  icon: Icons.analytics_outlined,
-                  isFullWidth: true,
-                  onTap: () => Get.toNamed('/fertility-patterns'),
-                ),
-                const SizedBox(height: 20),
-                // --- NOVO CARROSSEL DE NOTÍCIAS REGIONAIS ---
-                _buildSectionHeader("Conexão Crateús", Icons.newspaper_outlined),
-                const SizedBox(height: 12),
-                NewsCarousel(),
-                const SizedBox(height: 20),
-                // Grid de Atalhos Atualizado
-                Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => Get.toNamed('/rebanho'),
-                        child: _buildGridCard(Icons.pets, 'Meus Rebanhos', 'Gerencie seus Animais'),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => Get.toNamed('/reports'),
-                        child: _buildGridCard(Icons.description_outlined, 'Relatórios', 'Dashboard e Exportação'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => Get.toNamed('/activities-history'),
-                        child: _buildGridCard(Icons.history, 'Atividades e Histórico', 'Eventos Salvos'),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => Get.toNamed('/calendar'),
-                        child: _buildGridCard(Icons.calendar_month_outlined, 'Calendário', 'Vacinas e Manejo'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                // Card de Resumo
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                  const SizedBox(height: 12),
+                  // Três cards verdes principais empilhados verticalmente
+                  _buildActionCard(
+                    title: 'Nova Análise de Prenhez com IA',
+                    subtitle: 'Analisar chance real de Inseminação',
+                    icon: Icons.psychology_outlined,
+                    isFullWidth: true,
+                    onTap: () => Get.toNamed('/ia-analysis'),
                   ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const SizedBox(height: 12),
+                  _buildActionCard(
+                    title: 'Ranking de Reprodutores',
+                    subtitle: 'IA de Melhoramento Genético',
+                    icon: Icons.star_border,
+                    isFullWidth: true,
+                    onTap: () => Get.toNamed('/ranking-abs'),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildActionCard(
+                    title: 'Padrões de fertilidade',
+                    subtitle: 'Análise preditiva de cada animal',
+                    icon: Icons.analytics_outlined,
+                    isFullWidth: true,
+                    onTap: () => Get.toNamed('/fertility-patterns'),
+                  ),
+                  const SizedBox(height: 20),
+                  // --- NOVO CARROSSEL DE COTAÇÕES ---
+                  _buildSectionHeader("Mercado e Cotações", Icons.trending_up),
+                  const SizedBox(height: 12),
+                  MarketCarousel(),
+                  const SizedBox(height: 20),
+                  // Grid de Atalhos Atualizado
+                  _buildSectionHeader("Gerenciamento", Icons.grid_view_outlined),
+                  const SizedBox(height: 12),
+                  Row(
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Total de Animais', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                          SizedBox(height: 4),
-                          Text('45', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                        ],
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => Get.toNamed('/rebanho'),
+                          child: _buildGridCard(Icons.pets, 'Meus Rebanhos', 'Gerencie seus Animais'),
+                        ),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text('Análises este mês', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                          SizedBox(height: 4),
-                          Text('12', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
-                        ],
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => Get.toNamed('/reports'),
+                          child: _buildGridCard(Icons.description_outlined, 'Relatórios', 'Dashboard e Exportação'),
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => Get.toNamed('/activities-history'),
+                          child: _buildGridCard(Icons.history, 'Atividades e Histórico', 'Eventos Salvos'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => Get.toNamed('/calendar'),
+                          child: _buildGridCard(Icons.calendar_month_outlined, 'Calendário', 'Vacinas e Manejo'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // --- NOVO CARROSSEL DE NOTÍCIAS REGIONAIS ---
+                  _buildSectionHeader("Conexão Crateús", Icons.newspaper_outlined),
+                  const SizedBox(height: 12),
+                  NewsCarousel(),
+                  const SizedBox(height: 20),
+                  // Card de Resumo
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Total de Animais', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                            SizedBox(height: 4),
+                            Text('45', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('Análises este mês', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                            SizedBox(height: 4),
+                            Text('12', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -390,18 +439,30 @@ class HomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildMonitorItem(IconData icon, String value, String label, {Color? valueColor, bool showBadge = false}) {
+  Widget _buildMonitorItem(IconData icon, String value, String label, {Color? valueColor, bool showBadge = false, bool showInfo = false}) {
     return Column(
       children: [
         Icon(icon, color: Colors.grey[500], size: 28),
         const SizedBox(height: 8),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: valueColor ?? Get.context!.theme.textTheme.bodyLarge?.color,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: valueColor ?? Get.context!.theme.textTheme.bodyLarge?.color,
+              ),
+            ),
+            if (showInfo) ...[
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: () => _showTHIInfo(),
+                child: Icon(Icons.info_outline, size: 14, color: Colors.green[800]),
+              ),
+            ],
+          ],
         ),
         Text(
           label,
@@ -422,6 +483,61 @@ class HomeView extends StatelessWidget {
           ),
         ]
       ],
+    );
+  }
+
+  IconData _getWeatherIcon(String code) {
+    // Mapeamento de ícones do OpenWeather para Icons do Flutter
+    switch (code) {
+      case '01d': return Icons.wb_sunny_outlined;
+      case '01n': return Icons.nightlight_round;
+      case '02d':
+      case '02n':
+      case '03d':
+      case '03n':
+      case '04d':
+      case '04n': return Icons.cloud_outlined;
+      case '09d':
+      case '09n':
+      case '10d':
+      case '10n': return Icons.umbrella_outlined;
+      case '11d':
+      case '11n': return Icons.thunderstorm_outlined;
+      case '13d':
+      case '13n': return Icons.ac_unit;
+      case '50d':
+      case '50n': return Icons.blur_on;
+      default: return Icons.wb_sunny_outlined;
+    }
+  }
+
+  void _showTHIInfo() {
+    Get.dialog(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.green[800]),
+            const SizedBox(width: 10),
+            const Text("O que é THI?"),
+          ],
+        ),
+        content: const Text(
+          "O THI (Índice de Temperatura e Umidade) mede o nível de estresse térmico dos animais. \n\n"
+          "✅ Abaixo de 72: Conforto\n"
+          "⚠️ 72 a 78: Estresse Leve\n"
+          "🚨 79 a 88: Estresse Moderado\n"
+          "🔥 Acima de 89: Estresse Grave\n\n"
+          "Mantenha seus animais hidratados e em locais arejados nos dias de THI alto!",
+          style: TextStyle(fontSize: 14, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text("ENTENDI", style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -492,20 +608,50 @@ class HomeView extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.green[800],
-          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.green[900]!,
+              const Color(0xFF1B5E20),
+              const Color(0xFF003300),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.greenAccent.withOpacity(0.2), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.greenAccent.withOpacity(0.1),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            Container(
-              padding: EdgeInsets.all(isFullWidth ? 12 : 8),
-              decoration: const BoxDecoration(
-                color: Colors.white12,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: Colors.white, size: isFullWidth ? 30 : 22),
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(seconds: 2),
+              curve: Curves.easeInOut,
+              builder: (context, value, child) {
+                return Container(
+                  padding: EdgeInsets.all(isFullWidth ? 14 : 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white12,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.greenAccent.withOpacity(0.3 * value),
+                        blurRadius: 15 * value,
+                        spreadRadius: 2 * value,
+                      )
+                    ],
+                  ),
+                  child: Icon(icon, color: Colors.greenAccent, size: isFullWidth ? 28 : 22),
+                );
+              },
             ),
-            SizedBox(width: isFullWidth ? 16 : 10),
+            SizedBox(width: isFullWidth ? 20 : 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,17 +660,20 @@ class HomeView extends StatelessWidget {
                     title,
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: isFullWidth ? 16 : 13,
-                      fontWeight: FontWeight.bold,
+                      fontSize: isFullWidth ? 17 : 13,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.3,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: Colors.greenAccent.withOpacity(0.7),
                       fontSize: isFullWidth ? 13 : 10,
+                      fontWeight: FontWeight.w500,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -532,6 +681,7 @@ class HomeView extends StatelessWidget {
                 ],
               ),
             ),
+            Icon(Icons.arrow_forward_ios, color: Colors.greenAccent.withOpacity(0.4), size: 14),
           ],
         ),
       ),

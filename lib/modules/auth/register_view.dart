@@ -9,16 +9,16 @@ class RegisterView extends StatelessWidget {
 
   // TEXTOS DOS MODELOS - ARMAZENADOS LOCALMENTE PARA USO OFFLINE
   static const String TEXTO_TERMOS = """
-Termos de Serviço - AgroGen Crateús
-Bem-vindo ao AgroGen Crateús. Ao utilizar nossa plataforma de gerenciamento genético e reprodutivo de bovinos, ovinos e caprinos, você concorda com as seguintes condições:
-1. Escopo do Serviço: O AgroGen é uma ferramenta de suporte técnico para otimização de inseminação artificial e controle de linhagens genéticas. As decisões de manejo e as aplicações de campo são de responsabilidade exclusiva do produtor ou técnico responsável.
+Termos de Serviço - AgroTech Crateús
+Bem-vindo ao AgroTech Crateús. Ao utilizar nossa plataforma de gerenciamento genético e reprodutivo de bovinos, ovinos e caprinos, você concorda com as seguintes condições:
+1. Escopo do Serviço: O AgroTech é uma ferramenta de suporte técnico para otimização de inseminação artificial e controle de linhagens genéticas. As decisões de manejo e as aplicações de campo são de responsabilidade exclusiva do produtor ou técnico responsável.
 2. Uso Offline: O aplicativo realiza o processamento e armazenamento local dos dados reprodutivos para garantir o funcionamento em áreas sem conectividade. É de responsabilidade do usuário manter o aplicativo atualizado para sincronização de dados quando houver rede disponível.
-3. Propriedade Intelectual: Todo o design, algoritmos de recomendação locais e lógica de interface pertencem à equipe de desenvolvimento do AgroGen.
+3. Propriedade Intelectual: Todo o design, algoritmos de recomendação locais e lógica de interface pertencem à equipe de desenvolvimento do AgroTech.
 4. Modificações: Estes termos podem ser atualizados a qualquer momento para refletir melhorias no sistema ou mudanças na legislação agropecuária.
 """;
 
   static const String TEXTO_PRIVACIDADE = """
-Política de Privacidade - AgroGen Crateús
+Política de Privacidade - AgroTech Crateús
 A sua privacidade e a segurança dos dados da sua propriedade são nossa prioridade. Esta política explica como lidamos com as suas informações:
 1. Coleta de Dados: Coletamos os dados informados no seu cadastro inicial (Nome, CPF, Perfil) e os dados do seu rebanho (espécies, raças, linhagens e histórico reprodutivo).
 2. Armazenamento Offline-First: Em conformidade com a LGPD (Lei Geral de Proteção de Dados), todos os dados de manejo do seu rebanho e localização da propriedade são armazenados de forma criptografada localmente no banco de dados do seu dispositivo.
@@ -119,7 +119,7 @@ A sua privacidade e a segurança dos dados da sua propriedade são nossa priorid
                 ),
                 SizedBox(height: 16),
                 Text(
-                  'AgroGen Crateús',
+                  'AgroTech Crateús',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,

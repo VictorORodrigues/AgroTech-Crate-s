@@ -28,7 +28,7 @@ class OnboardingView extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'AgroGen Crateús',
+              'AgroTech Crateús',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
@@ -103,12 +103,12 @@ class _Step1 extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Obx(() => TextField(
-              controller: controller.cpfController,
-              inputFormatters: [controller.cpfMask],
-              keyboardType: TextInputType.number,
+              controller: controller.celularController,
+              inputFormatters: [controller.celularMask],
+              keyboardType: TextInputType.phone,
               decoration: InputDecoration(
-                hintText: 'CPF',
-                errorText: controller.cpfError.value,
+                hintText: 'Número de Celular (WhatsApp)',
+                errorText: controller.celularError.value,
                 filled: true,
                 fillColor: Colors.white,
                 enabledBorder: OutlineInputBorder(
@@ -209,7 +209,7 @@ class _Step1 extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Ao prosseguir, você autoriza o AgroGen Crateús a processar seus dados para fins de gestão técnica. Garantimos a criptografia e sigilo total de suas informações pessoais e produtivas.',
+                          'Ao prosseguir, você autoriza o AgroTech Crateús a processar seus dados para fins de gestão técnica. Garantimos a criptografia e sigilo total de suas informações pessoais e produtivas.',
                           style: TextStyle(fontSize: 12, color: Colors.grey[800]),
                         ),
                       ],

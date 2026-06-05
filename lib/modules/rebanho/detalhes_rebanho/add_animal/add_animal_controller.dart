@@ -3,12 +3,14 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../../../database/database_helper.dart';
 import '../../../../utils/agro_alerts.dart';
 import '../detalhes_rebanho_controller.dart';
 import '../../rebanho_controller.dart';
 import '../../perfil_animal/perfil_animal_controller.dart';
 import '../../../ia_analysis/ia_model.dart';
+import '../../../../services/sync_service.dart';
 
 class AddAnimalController extends GetxController {
   // Dados passados por argumentos
@@ -24,9 +26,36 @@ class AddAnimalController extends GetxController {
   final idadeCtrl = TextEditingController();
   final linhagemCtrl = TextEditingController();
   final fertilidadeSemenCtrl = TextEditingController();
+
+  final weightMask = MaskTextInputFormatter(
+    mask: '###.#',
+    filter: {"#": RegExp(r'[0-9]')},
+  );
+
+  final semenMask = MaskTextInputFormatter(
+    mask: '#.#',
+    filter: {"#": RegExp(r'[0-9]')},
+  );
+
+  void validateSemenInput(String val) {
+    if (val.isEmpty) return;
+    double? d = double.tryParse(val.replaceAll(',', '.'));
+    if (d != null) {
+      if (d > 1.0) {
+        fertilidadeSemenCtrl.text = "1.0";
+        fertilidadeSemenCtrl.selection = TextSelection.fromPosition(
+          TextPosition(offset: fertilidadeSemenCtrl.text.length),
+        );
+      }
+    }
+  }
   
   var photoPath = "".obs;
   var pdfPath = "".obs;
+  var birthDate = Rxn<DateTime>();
+  var deathDate = Rxn<DateTime>();
+  var vitalStatus = "Ativo".obs;
+
   final ImagePicker _picker = ImagePicker();
   
   var sexoSelecionado = "".obs;
@@ -51,6 +80,7 @@ class AddAnimalController extends GetxController {
   var statusError = Rxn<String>();
   var paridadeError = Rxn<String>();
   var semenFertilityError = Rxn<String>();
+  var aptidaoError = Rxn<String>();
 
   final List<String> racas = [
     "Nativa Pura",
@@ -96,6 +126,16 @@ class AddAnimalController extends GetxController {
     if (args != null) {
       if (args['mother_id'] != null) idMaeSelecionada.value = args['mother_id'];
       if (args['father_id'] != null) idPaiSelecionado.value = args['father_id'];
+      if (args['birth_date'] != null) {
+        birthDate.value = DateTime.tryParse(args['birth_date']);
+        // Calcula idade em meses se tiver data de nascimento
+        if (birthDate.value != null) {
+          final now = DateTime.now();
+          int months = (now.year - birthDate.value!.year) * 12 + now.month - birthDate.value!.month;
+          if (months < 0) months = 0;
+          idadeCtrl.text = months.toString();
+        }
+      }
     }
   }
 
@@ -114,10 +154,22 @@ class AddAnimalController extends GetxController {
     statusAtualSelecionado.value = animalToEdit!['reproductive_status'] ?? "";
     idPaiSelecionado.value = animalToEdit!['id_pai'] ?? "Desconhecido";
     idMaeSelecionada.value = animalToEdit!['id_mae'] ?? "Desconhecido";
-    aptidaoSelecionada.value = animalToEdit!['aptitude'] ?? "";
+    
+    // Normalização da Aptidão para evitar erro de Dropdown (Masculino vs Feminino)
+    String rawAptitude = animalToEdit!['aptitude']?.toString() ?? "";
+    if (rawAptitude == "Rústica") {
+      aptidaoSelecionada.value = "Rústico";
+    } else {
+      aptidaoSelecionada.value = rawAptitude;
+    }
+
     fertilidadeSemenCtrl.text = (animalToEdit!['semen_fertility'] ?? 0.0).toString();
     photoPath.value = animalToEdit!['photo_path'] ?? "";
     pdfPath.value = animalToEdit!['pdf_path'] ?? "";
+    
+    if (animalToEdit!['birth_date'] != null) birthDate.value = DateTime.tryParse(animalToEdit!['birth_date']);
+    if (animalToEdit!['death_date'] != null) deathDate.value = DateTime.tryParse(animalToEdit!['death_date']);
+    vitalStatus.value = animalToEdit!['vital_status'] ?? "Ativo";
   }
 
   void _loadPotentialParents() async {
@@ -221,8 +273,8 @@ class AddAnimalController extends GetxController {
       isValid = false;
     } else {
       double? p = double.tryParse(pesoCtrl.text.replaceAll(',', '.'));
-      if (p == null || p <= 0 || p > pesoMax) {
-        pesoError.value = "Máx: ${pesoMax}kg";
+      if (p == null || p < 0 || p > pesoMax) {
+        pesoError.value = "Mín: 0kg, Máx: ${pesoMax}kg";
         isValid = false;
       } else pesoError.value = null;
     }
@@ -232,16 +284,24 @@ class AddAnimalController extends GetxController {
       isValid = false;
     } else {
       int? i = int.tryParse(idadeCtrl.text);
-      if (i == null || i <= 0 || i > idadeMax) {
-        idadeError.value = "Máx: ${idadeMax}m";
+      if (i == null || i < 0 || i > idadeMax) {
+        idadeError.value = "Mín: 0m, Máx: ${idadeMax}m";
         isValid = false;
-      } else idadeError.value = null;
+      } else {
+        // Se a idade for 0, permitimos
+        idadeError.value = null;
+      }
     }
 
     if (sexoSelecionado.value.isEmpty) {
       sexoError.value = "Obrigatório";
       isValid = false;
     } else sexoError.value = null;
+
+    if (aptidaoSelecionada.value.isEmpty) {
+      aptidaoError.value = "Obrigatório";
+      isValid = false;
+    } else aptidaoError.value = null;
 
     if (racaSelecionada.value.isEmpty) {
       racaError.value = "Obrigatório";
@@ -304,75 +364,107 @@ class AddAnimalController extends GetxController {
     }
   }
 
+  var isSaving = false.obs;
+
   Future<void> salvar() async {
-    if (!validarFormulario()) return;
+    if (!validarFormulario()) {
+      AgroAlert.show(
+        title: "Campos Pendentes", 
+        message: "Verifique os campos em vermelho (ID, Peso, Idade, Sexo, Raça e Aptidão) antes de salvar.", 
+        isError: true
+      );
+      return;
+    }
 
-    // Tratamento de números para evitar erros de localidade (vírgula vs ponto)
-    double peso = double.tryParse(pesoCtrl.text.replaceAll(',', '.')) ?? 0.0;
-    int idade = int.tryParse(idadeCtrl.text) ?? 0;
-    double fertilidade = double.tryParse(fertilidadeSemenCtrl.text.replaceAll(',', '.')) ?? 0.0;
-
-    final data = {
-      'herd_id': herd['id'],
-      'identifier': idCtrl.text.trim(),
-      'name': nomeAnimalCtrl.text.trim(),
-      'breed_name': racaNomeCtrl.text.trim(),
-      'weight': peso,
-      'age_months': idade,
-      'sex': sexoSelecionado.value,
-      'breed': racaSelecionada.value,
-      'ecc': eccValue.value,
-      'lineage': linhagemCtrl.text.trim(),
-      'id_pai': idPaiSelecionado.value,
-      'id_mae': idMaeSelecionada.value,
-      'aptitude': aptidaoSelecionada.value,
-      'semen_fertility': fertilidade,
-      'parity': paridadeSelecionada.value,
-      'dpp_status': dppSelecionado.value,
-      'reproductive_status': statusAtualSelecionado.value,
-      'photo_path': photoPath.value,
-      'pdf_path': pdfPath.value,
-    };
-
-    int animalId;
     try {
+      isSaving.value = true;
+      
+      // Tratamento de números
+      double peso = double.tryParse(pesoCtrl.text.replaceAll(',', '.')) ?? 0.0;
+      int idade = int.tryParse(idadeCtrl.text) ?? 0;
+      double fertilidade = double.tryParse(fertilidadeSemenCtrl.text.replaceAll(',', '.')) ?? 0.0;
+      if (fertilidade > 1.0) fertilidade = 1.0;
+      if (fertilidade < 0.0) fertilidade = 0.0;
+
+      final data = {
+        'herd_id': herd['id'],
+        'identifier': idCtrl.text.trim(),
+        'name': nomeAnimalCtrl.text.trim(),
+        'breed_name': racaNomeCtrl.text.trim(),
+        'weight': peso,
+        'age_months': idade,
+        'sex': sexoSelecionado.value,
+        'breed': racaSelecionada.value,
+        'ecc': eccValue.value,
+        'lineage': linhagemCtrl.text.trim(),
+        'id_pai': idPaiSelecionado.value,
+        'id_mae': idMaeSelecionada.value,
+        'aptitude': aptidaoSelecionada.value,
+        'semen_fertility': fertilidade,
+        'parity': paridadeSelecionada.value,
+        'dpp_status': dppSelecionado.value,
+        'reproductive_status': statusAtualSelecionado.value,
+        'photo_path': photoPath.value,
+        'pdf_path': pdfPath.value,
+        'birth_date': birthDate.value?.toIso8601String(),
+        'death_date': deathDate.value?.toIso8601String(),
+        'vital_status': vitalStatus.value,
+        'created_at': isEdition ? animalToEdit!['created_at'] : DateTime.now().toIso8601String(),
+        'initial_age_months': isEdition ? (animalToEdit!['initial_age_months'] ?? idade) : idade,
+      };
+
+      int animalId;
       if (isEdition) {
-        final db = await DatabaseHelper.instance.database;
-        await db.update('animals', data, where: 'id = ?', whereArgs: [animalToEdit!['id']]);
+        await DatabaseHelper.instance.updateAnimal(animalToEdit!['id'], data);
         animalId = animalToEdit!['id'];
       } else {
         animalId = await DatabaseHelper.instance.insertAnimal(data);
       }
 
-      // Atualiza os controladores de lista para refletir a mudança
-      if (Get.isRegistered<DetalhesRebanhoController>()) {
-        Get.find<DetalhesRebanhoController>().carregarDados();
-      }
-      if (Get.isRegistered<RebanhoController>()) {
-        Get.find<RebanhoController>().carregarRebanhos();
-      }
-
-      // Busca o animal completo do banco para garantir que temos todos os campos atualizados
-      final db = await DatabaseHelper.instance.database;
-      final List<Map<String, dynamic>> updatedAnimal = await db.query('animals', where: 'id = ?', whereArgs: [animalId]);
+      // Sincronização e Atualização de Listas
+      if (Get.isRegistered<DetalhesRebanhoController>()) Get.find<DetalhesRebanhoController>().carregarDados();
+      if (Get.isRegistered<RebanhoController>()) Get.find<RebanhoController>().carregarRebanhos();
+      if (isEdition && Get.isRegistered<PerfilAnimalController>()) Get.find<PerfilAnimalController>().carregarDadosDoBanco(animalId);
       
-      if (updatedAnimal.isNotEmpty) {
-        if (isEdition) {
-          if (Get.isRegistered<PerfilAnimalController>()) {
-            Get.find<PerfilAnimalController>().carregarDadosDoBanco(animalId);
-          }
-          Get.back();
-        } else {
-          Get.back();
-          Get.toNamed('/perfil-animal', arguments: Map<String, dynamic>.from(updatedAnimal.first));
-        }
-      } else {
-        Get.back();
-      }
+      SyncService.instance.syncLocalToCloud();
+      
+      isSaving.value = false;
 
-      AgroAlert.show(title: "Sucesso", message: isEdition ? "Animal atualizado!" : "Animal adicionado!", isSuccess: true);
+      // EXIBE O MODAL DE SUCESSO PRIMEIRO
+      await Get.dialog(
+        Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle_outline, color: Colors.green, size: 60),
+                const SizedBox(height: 16),
+                Text(isEdition ? "Animal Atualizado" : "Animal Adicionado", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text("Os dados foram salvos com sucesso no banco de dados.", textAlign: TextAlign.center),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Get.back(), 
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green[800]),
+                    child: const Text("OK", style: TextStyle(color: Colors.white)),
+                  ),
+                )
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // VOLTA SOMENTE APÓS O USUÁRIO CLICAR NO OK DO MODAL
+      Get.back();
+
     } catch (e) {
-      AgroAlert.show(title: "Erro ao Salvar", message: "Não foi possível salvar os dados: $e", isError: true);
+      isSaving.value = false;
+      AgroAlert.show(title: "Erro Crítico", message: "Não foi possível salvar: $e", isError: true);
     }
   }
 

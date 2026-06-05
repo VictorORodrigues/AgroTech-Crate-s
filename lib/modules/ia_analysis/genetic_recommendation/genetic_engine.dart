@@ -1,26 +1,42 @@
-import 'package:get/get.dart';
+import 'dart:math';
+
+class GeneticMatchResult {
+  final AnimalReprodutor male;
+  final double score;
+  final List<String> justifications;
+  final bool isBlocked;
+
+  GeneticMatchResult({
+    required this.male,
+    required this.score,
+    required this.justifications,
+    this.isBlocked = false,
+  });
+}
 
 class AnimalMatriz {
   final int id;
   final String identifier;
-  final int typeRaca; // 0:Nativa, 1:Mestiço, 2:Leite, 3:Corte, 4:SRD
-  final String lineage;
-  final String? idPai;
-  final int ecc;
-  final int numPartos;
-  final int dpp;
   final String category;
+  final String breed;
+  final double ecc;
+  final String parity;
+  final String aptitude;
+  final String? id_pai;
+  final String? id_mae;
+  final String lineage; // Adicionado para rastreio de avós/bisavôs
 
   AnimalMatriz({
     required this.id,
     required this.identifier,
-    required this.typeRaca,
-    required this.lineage,
-    this.idPai,
-    required this.ecc,
-    required this.numPartos,
-    required this.dpp,
     required this.category,
+    required this.breed,
+    required this.ecc,
+    required this.parity,
+    required this.aptitude,
+    required this.lineage,
+    this.id_pai,
+    this.id_mae,
   });
 }
 
@@ -28,116 +44,136 @@ class AnimalReprodutor {
   final int id;
   final String identifier;
   final String breed;
-  final int typeRaca;
-  final String lineage;
-  final String? idPai;
+  final String category; // Adicionado para garantir a espécie correta
+  final String aptitude;
   final double semenFertility;
-  final String aptitude; // rústico, alta_producao
-  final String category;
+  final double weight;
+  final String? id_pai;
+  final String? id_mae;
   final String? photoPath;
+  final String lineage;
 
   AnimalReprodutor({
     required this.id,
     required this.identifier,
     required this.breed,
-    required this.typeRaca,
-    required this.lineage,
-    this.idPai,
-    required this.semenFertility,
-    required this.aptitude,
     required this.category,
+    required this.aptitude,
+    required this.semenFertility,
+    required this.weight,
+    required this.lineage,
+    this.id_pai,
+    this.id_mae,
     this.photoPath,
   });
 }
 
-class RecommendationResult {
-  final AnimalReprodutor reprodutor;
-  final double score;
-  final List<String> justifications;
-
-  RecommendationResult({
-    required this.reprodutor,
-    required this.score,
-    required this.justifications,
-  });
-}
-
-class MotorRecomendacaoGenetica {
-  static List<RecommendationResult> recomendar({
-    required AnimalMatriz matriz,
-    required List<AnimalReprodutor> reprodutores,
-    required String manejoFazenda,
+class GeneticEngine {
+  /// Motor de Recomendação e Ranking de Acasalamento Direcionado
+  /// Implementa regras zootécnicas avançadas para o semiárido.
+  static List<GeneticMatchResult> rankMales({
+    required AnimalMatriz female,
+    required List<AnimalReprodutor> availableMales,
+    required double currentTHI,
   }) {
-    List<RecommendationResult> results = [];
-    String manejo = manejoFazenda.toLowerCase();
+    List<GeneticMatchResult> results = [];
 
-    for (var macho in reprodutores) {
-      if (macho.category != matriz.category) continue;
+    for (var male in availableMales) {
+      double score = 60.0; // Score Base
+      List<String> justifications = [];
+      bool blocked = false;
 
-      double score = 0;
-      List<String> motivos = [];
+      // 1. PILAR: BLOQUEIO DE CONSANGUINIDADE (Risco Máximo - Avós e Bisavós)
+      final fId = female.identifier.toLowerCase().trim();
+      final fPai = female.id_pai?.toString().trim().toLowerCase() ?? "";
+      final fMae = female.id_mae?.toString().trim().toLowerCase() ?? "";
+      final fLinhagem = female.lineage.toLowerCase();
 
-      // 1. CONSANGUINIDADE
-      if (macho.lineage == matriz.lineage || (macho.idPai != null && macho.idPai == matriz.idPai)) {
-        score = -100;
-        motivos.add("BLOQUEIO: Risco de consanguinidade (Mesma linhagem/pai).");
-      } else {
-        motivos.add("Segurança Genética Aprovada.");
+      final mId = male.identifier.toLowerCase().trim();
+      final mPai = male.id_pai?.toString().trim().toLowerCase() ?? "";
+      final mMae = male.id_mae?.toString().trim().toLowerCase() ?? "";
+      final mLinhagem = male.lineage.toLowerCase();
 
-        // 2. APTIDÃO POR MANEJO
-        if (manejo == 'extensivo') {
-          if (macho.aptitude == 'Rústico' || macho.aptitude == 'rústico') {
-            score += 40;
-            motivos.add("+40 Pts: Reprodutor Rústico ideal para pasto/caatinga.");
-          } else {
-            score -= 10;
-            motivos.add("-10 Pts: Baixa eficiência de reprodutor de elite em manejo a pasto.");
-          }
-        } else if (manejo == 'intensivo') {
-          if (macho.aptitude == 'Alta produção' || macho.aptitude == 'alta_producao') {
-            score += 40;
-            motivos.add("+40 Pts: Alta Produção responde bem ao confinamento.");
-          }
-        } else {
-          score += 20;
-          motivos.add("+20 Pts: Adequação para regime semiextensivo.");
-        }
+      // Checagem Direta (Pai/Mãe/Irmão)
+      bool sameFather = (fPai.isNotEmpty && fPai != "desconhecido" && fPai == mPai);
+      bool sameMother = (fMae.isNotEmpty && fMae != "desconhecido" && fMae == mMae);
+      bool isFather = (fPai.isNotEmpty && fPai == mId);
+      
+      // Checagem Profunda (Avós/Bisavós através do campo lineage)
+      // Verifica se o ID do macho ou de seus pais aparece na linhagem da fêmea
+      bool ancestorMatch = false;
+      if (mId.length > 2 && fLinhagem.contains(mId)) ancestorMatch = true;
+      if (mPai.length > 2 && fLinhagem.contains(mPai)) ancestorMatch = true;
+      if (fId.length > 2 && mLinhagem.contains(fId)) ancestorMatch = true;
 
-        // 3. CRUZAMENTO INDUSTRIAL E DIRECIONAMENTO
-        if (matriz.typeRaca <= 1 && manejo == 'intensivo' && macho.typeRaca >= 2 && macho.typeRaca <= 3) {
-          score += 25;
-          motivos.add("+25 Pts: Ganho por Cruzamento Industrial (Fêmea adaptada + Macho Elite).");
-        }
-        if (manejo == 'extensivo' && macho.typeRaca <= 1) {
-          score += 20;
-          motivos.add("+20 Pts: Manutenção de sangue adaptado para sobrevivência.");
-        }
-
-        // 4. COMPENSAÇÃO DE SAÚDE E PÓS-PARTO
-        if (matriz.ecc <= 2) {
-          if (macho.semenFertility >= 0.90) {
-            score += 30;
-            motivos.add("+30 Pts: Sêmen Premium compensa ECC baixo da matriz.");
-          } else {
-            score -= 15;
-            motivos.add("-15 Pts: Matriz debilitada exige touro de fertilidade superior.");
-          }
-        }
-        if (matriz.numPartos > 0 && matriz.dpp < 50 && macho.semenFertility >= 0.92) {
-          score += 15;
-          motivos.add("+15 Pts: Vigor do sêmen auxilia na involução uterina.");
-        }
-
-        // 5. PERFORMANCE INDIVIDUAL
-        double pontosSemen = macho.semenFertility * 30;
-        score += pontosSemen;
-        motivos.add("+${pontosSemen.toStringAsFixed(1)} Pts: Fertilidade Intrínseca (${(macho.semenFertility * 100).toInt()}%).");
+      if (sameFather || sameMother || isFather || ancestorMatch) {
+        score = 0.0;
+        blocked = true;
+        justifications.add("BLOQUEIO: Risco de consanguinidade (Ancestral comum detectado).");
       }
 
-      results.add(RecommendationResult(
-        reprodutor: macho,
-        score: score,
-        justifications: motivos,
+      if (!blocked) {
+        // 2. PILAR: COMPLEMENTARIDADE DE APTIDÃO
+        if (female.aptitude != male.aptitude) {
+          score += 20.0;
+          justifications.add("Complementaridade: Equilíbrio entre Rusticidade e Produção.");
+        } else {
+          score -= 10.0;
+          justifications.add("Homogeneidade: Ambos possuem o mesmo foco de aptidão.");
+        }
+
+        // 3. PILAR: FERTILIDADE DO SÊMEN (Multiplicador de Vigor)
+        score *= male.semenFertility;
+        justifications.add("Vigor Seminal: Reprodutor com ${(male.semenFertility * 100).toInt()}% de fertilidade.");
+
+        // 4. PILAR: CORREÇÃO DE BIOTIPO (Segurança no Parto)
+        if (female.parity == "Nulípara" && male.weight > 500) {
+          score -= 25.0;
+          justifications.add("Risco de Parto: Reprodutor pesado para matriz jovem (Nulípara).");
+        }
+
+        // 5. REGRAS DE MERCADO (CATEGORIA E LINHAGEM)
+        final femaleCat = female.breed; // 'Nativa Pura', 'Mestico Sertanejo', etc.
+        final maleCat = male.breed;
+
+        // REGRA 1: CHOQUE DE SANGUE (HETEROSE)
+        bool femaleIsMestica = femaleCat.contains("Mestiço") || femaleCat.contains("SRD");
+        bool maleIsPuro = maleCat.contains("Pura");
+        if (femaleIsMestica && maleIsPuro) {
+          score += 30.0;
+          justifications.add("Choque de Sangue: Potencial máximo de ganho produtivo (Heterose).");
+        }
+
+        // REGRA 2: PRESERVAÇÃO DE ELITE (FÊMEA PURA)
+        bool femaleIsPura = femaleCat.contains("Pura");
+        if (femaleIsPura) {
+          if (maleIsPuro) {
+            // Se clima for ameno, bonifica muito. Se quente, bonifica menos.
+            if (currentTHI < 75.0) {
+              score += 40.0;
+              justifications.add("Preservação de Elite: Acasalamento ideal para linhagem PO.");
+            } else {
+              score += 20.0;
+              justifications.add("Elite: Mantém linhagem pura (Atenção ao estresse térmico).");
+            }
+          } else if (maleCat.contains("SRD")) {
+            score -= 50.0;
+            justifications.add("Proteção Genética: Não recomendado degradar genética pura com SRD.");
+          }
+        }
+
+        // REGRA 3: FILTRO DE SOBREVIVÊNCIA (EXÓTICA PURA NO CALOR)
+        if (femaleCat == "Exótica Pura" && maleCat == "Exótica Pura" && currentTHI >= 79.0) {
+          score -= 40.0;
+          justifications.add("Bloqueio de Fragilidade: Risco de mortalidade do filhote por calor extremo.");
+        }
+      }
+
+      results.add(GeneticMatchResult(
+        male: male,
+        score: score.clamp(0.0, 100.0),
+        justifications: justifications,
+        isBlocked: blocked,
       ));
     }
 

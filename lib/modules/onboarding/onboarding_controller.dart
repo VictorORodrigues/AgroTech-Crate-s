@@ -3,24 +3,27 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
+import '../../services/sync_service.dart';
+
 class OnboardingController extends GetxController {
   final _storage = GetStorage();
   final pageController = PageController();
   var currentPage = 0.obs;
+  var isLoading = false.obs;
 
   // Passo 1: Dados Pessoais
   final nomeController = TextEditingController();
-  final cpfController = TextEditingController();
+  final celularController = TextEditingController();
   var perfilAtuacao = "".obs; // Veterinário, Técnico ou Pecuarista
   var aceitouTermos = false.obs; // Aceite dos termos de dados pessoais
   var isPerfilPickerOpen = false.obs; 
   var nomeError = Rxn<String>();
-  var cpfError = Rxn<String>();
+  var celularError = Rxn<String>();
   var perfilError = Rxn<String>();
   var termosError = Rxn<String>();
 
-  final cpfMask = MaskTextInputFormatter(
-    mask: '###.###.###-##',
+  final celularMask = MaskTextInputFormatter(
+    mask: '(##) #####-####',
     filter: {"#": RegExp(r'[0-9]')},
   );
 
@@ -72,44 +75,25 @@ class OnboardingController extends GetxController {
     }
   }
 
-  bool _isValidCPF(String cpf) {
-    if (cpf.length != 11) return false;
-    if (RegExp(r'^(\d)\1*$').hasMatch(cpf)) return false; // Bloqueia 111.111.111-11, etc.
-
-    List<int> digits = cpf.split('').map(int.parse).toList();
-    
-    // Primeiro dígito
-    int sum = 0;
-    for (int i = 0; i < 9; i++) sum += digits[i] * (10 - i);
-    int res = (sum * 10) % 11;
-    if (res == 10) res = 0;
-    if (res != digits[9]) return false;
-
-    // Segundo dígito
-    sum = 0;
-    for (int i = 0; i < 10; i++) sum += digits[i] * (11 - i);
-    res = (sum * 10) % 11;
-    if (res == 10) res = 0;
-    if (res != digits[10]) return false;
-
-    return true;
-  }
-
   bool _validateStep1() {
     bool isValid = true;
-    if (nomeController.text.trim().isEmpty) {
+    String fullName = nomeController.text.trim();
+    if (fullName.isEmpty) {
       nomeError.value = "Nome completo é obrigatório";
+      isValid = false;
+    } else if (fullName.split(' ').length < 2) {
+      nomeError.value = "Digite seu nome completo (nome e sobrenome)";
       isValid = false;
     } else {
       nomeError.value = null;
     }
 
-    String cpf = cpfMask.getUnmaskedText();
-    if (!_isValidCPF(cpf)) {
-      cpfError.value = "CPF inválido. Verifique os números.";
+    String phone = celularMask.getUnmaskedText();
+    if (phone.length < 10) {
+      celularError.value = "Número de celular inválido";
       isValid = false;
     } else {
-      cpfError.value = null;
+      celularError.value = null;
     }
 
     if (perfilAtuacao.value.isEmpty) {
@@ -171,18 +155,38 @@ class OnboardingController extends GetxController {
     }
   }
 
-  void finishOnboarding() {
-    String localFinal = isOutroDistrito.value 
-        ? outroDistritoController.text.trim() 
-        : localidade.value;
+  Future<void> finishOnboarding() async {
+    isLoading.value = true;
+    try {
+      String localFinal = isOutroDistrito.value 
+          ? outroDistritoController.text.trim() 
+          : localidade.value;
 
-    // Salva os dados para exibição na Home
-    _storage.write('userName', nomeController.text.trim());
-    _storage.write('farmName', nomePropriedadeController.text.trim());
-    _storage.write('location', localFinal);
+      // Salva os dados para exibição na Home
+      _storage.write('userName', nomeController.text.trim());
+      _storage.write('userPhone', celularController.text.trim());
+      _storage.write('farmName', nomePropriedadeController.text.trim());
+      _storage.write('location', localFinal);
 
-    // Salva que o onboarding foi concluído
-    _storage.write('onboardingCompleted', true);
-    Get.offAllNamed('/home');
+      // Salva o perfil do usuário na nuvem também
+      await SyncService.instance.saveUserProfileToCloud(
+        userName: nomeController.text.trim(),
+        userPhone: celularController.text.trim(),
+        farmName: nomePropriedadeController.text.trim(),
+        location: localFinal,
+      );
+
+      // Tenta baixar dados existentes da nuvem se for uma reinstalação
+      await SyncService.instance.syncCloudToLocal();
+
+      // Salva que o onboarding foi concluído
+      _storage.write('onboardingCompleted', true);
+      Get.offAllNamed('/navigation');
+    } catch (e) {
+      print("Erro na finalização/sincronia: $e");
+      Get.offAllNamed('/navigation');
+    } finally {
+      isLoading.value = false;
+    }
   }
 }

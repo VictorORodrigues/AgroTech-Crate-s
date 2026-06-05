@@ -17,13 +17,20 @@ class _SplashViewState extends State<SplashView> {
   void _navigateToNext() async {
     await Future.delayed(const Duration(seconds: 3));
     
+    // BYPASS ABSOLUTO: Se a URL no navegador for de um animal, não redireciona para Login
+    final currentUri = Uri.base.toString();
+    if (currentUri.contains('/animal/')) {
+      print("Acesso Público Detectado: Bloqueando redirecionamento para login.");
+      return;
+    }
+
     final storage = GetStorage();
     bool isLoggedIn = storage.read('isLoggedIn') ?? false;
     bool onboardingCompleted = storage.read('onboardingCompleted') ?? false;
 
     if (isLoggedIn) {
       if (onboardingCompleted) {
-        Get.offAllNamed('/home');
+        Get.offAllNamed('/navigation');
       } else {
         Get.offAllNamed('/onboarding');
       }
@@ -55,7 +62,7 @@ class _SplashViewState extends State<SplashView> {
             ),
             const SizedBox(height: 30),
             Text(
-              'AgroGen Crateús',
+              'AgroTech Crateús',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,

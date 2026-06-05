@@ -9,6 +9,7 @@ import '../../../database/database_helper.dart';
 import '../../../utils/agro_alerts.dart';
 import '../detalhes_rebanho/detalhes_rebanho_controller.dart';
 import '../rebanho_controller.dart';
+import '../../../services/sync_service.dart';
 
 class PerfilAnimalController extends GetxController {
   late Map<String, dynamic> animalInicial;
@@ -103,7 +104,20 @@ class PerfilAnimalController extends GetxController {
     final db = await DatabaseHelper.instance.database;
     final result = await db.query('animals', where: 'id = ?', whereArgs: [id]);
     if (result.isNotEmpty) {
-      animal.value = Map<String, dynamic>.from(result.first);
+      var data = Map<String, dynamic>.from(result.first);
+      
+      // AUTO-CORREÇÃO DE DADOS CORROMPIDOS (Legacy fix)
+      if (data['parity'] != null && (data['parity'].toString().contains('#') || data['parity'].toString().contains('|'))) {
+        data['parity'] = data['parity'].toString().split('#').first.split('|').first.trim();
+        // Se após o split o valor for inválido, assumimos um padrão seguro
+        if (!paridades.contains(data['parity'])) data['parity'] = "Multípara";
+      }
+      if (data['reproductive_status'] != null && data['reproductive_status'].toString().contains('#')) {
+        data['reproductive_status'] = data['reproductive_status'].toString().split('#').last.trim();
+        if (!statusOpcoes.contains(data['reproductive_status'])) data['reproductive_status'] = "Em Lactação";
+      }
+
+      animal.value = data;
       photoPath.value = animal['photo_path'] ?? "";
       pdfPath.value = animal['pdf_path'] ?? "";
       _fetchCategoryAndParents();
@@ -230,7 +244,7 @@ class PerfilAnimalController extends GetxController {
                type == "Diagnóstico de Toque" || type == "Aborto / Perda Gestacional";
       }
       if (selectedHistoryFilter.value == "Saúde") {
-        return type == "Vacinação" || type == "Medicamento";
+        return type == "Vacinação" || type == "Medicamento" || type == "Casqueamento" || type == "Tosquia";
       }
       return true;
     }).toList();
@@ -262,7 +276,7 @@ class PerfilAnimalController extends GetxController {
     };
 
     final db = await DatabaseHelper.instance.database;
-    await db.update('animals', updatedData, where: 'id = ?', whereArgs: [animal['id']]);
+    await DatabaseHelper.instance.updateAnimal(animal['id'], updatedData);
 
     var novoAnimal = Map<String, dynamic>.from(animal.value);
     novoAnimal.addAll(updatedData);
@@ -316,6 +330,7 @@ class PerfilAnimalController extends GetxController {
     if (Get.isRegistered<RebanhoController>()) {
       Get.find<RebanhoController>().carregarRebanhos();
     }
+    SyncService.instance.syncLocalToCloud();
   }
 
   @override

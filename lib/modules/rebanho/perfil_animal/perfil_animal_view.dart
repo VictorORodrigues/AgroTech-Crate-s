@@ -75,9 +75,17 @@ class PerfilAnimalView extends StatelessWidget {
                         }
                       },
                       child: ClipOval(
-                        child: controller.photoPath.value.isNotEmpty
-                            ? Image.file(File(controller.photoPath.value), fit: BoxFit.cover)
-                            : _buildPlaceholderIcon(),
+                        child: ColorFiltered(
+                          colorFilter: controller.animal['vital_status'] == 'Inativo'
+                            ? const ColorFilter.mode(Colors.grey, BlendMode.saturation)
+                            : const ColorFilter.mode(Colors.transparent, BlendMode.multiply),
+                          child: Opacity(
+                            opacity: controller.animal['vital_status'] == 'Inativo' ? 0.8 : 1.0,
+                            child: controller.photoPath.value.isNotEmpty
+                                ? Image.file(File(controller.photoPath.value), fit: BoxFit.cover)
+                                : _buildPlaceholderIcon(),
+                          ),
+                        ),
                       ),
                     ),
                   )),
@@ -100,14 +108,32 @@ class PerfilAnimalView extends StatelessWidget {
 }
 
   Widget _buildViewDetails(BuildContext context) {
+    final isInactive = controller.animal['vital_status'] == 'Inativo';
+    
     return Column(
       children: [
+        if (isInactive)
+          Container(
+            margin: const EdgeInsets.only(bottom: 20),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.red[100]!)),
+            child: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                const SizedBox(width: 12),
+                const Text("ANIMAL INATIVO (ÓBITO)", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13)),
+              ],
+            ),
+          ),
         _buildInfoCard(
           "Dados Principais",
           Icons.info_outline,
           [
             _buildDetailRow("ID ou Brinco", controller.animal['identifier']?.toString() ?? "N/A"),
             _buildDetailRow("Apelido", controller.animal['name']?.toString() ?? "N/A"),
+            _buildDetailRow("Data Nascimento", controller.animal['birth_date'] != null ? DateFormat('dd/MM/yyyy').format(DateTime.parse(controller.animal['birth_date'])) : "Não informada"),
+            if (isInactive)
+              _buildDetailRow("Data do Óbito", controller.animal['death_date'] != null ? DateFormat('dd/MM/yyyy').format(DateTime.parse(controller.animal['death_date'])) : "N/A"),
             _buildDetailRow("Peso", "${controller.animal['weight'] ?? '0'} kg"),
             _buildDetailRow("Idade", "${controller.animal['age_months'] ?? '0'} meses"),
             _buildDetailRow("Sexo", controller.animal['sex']?.toString() ?? "N/A"),
@@ -139,8 +165,9 @@ class PerfilAnimalView extends StatelessWidget {
             "Dados Reprodutivos",
             Icons.favorite_border,
             [
+              _buildDetailRow("Aptidão", controller.animal['aptitude']?.toString() == "Rústico" ? "Rústica" : (controller.animal['aptitude']?.toString() ?? "N/A")),
               _buildDetailRow("Paridade", controller.animal['parity']?.toString() ?? "N/A"),
-              if (controller.animal['parity'] != 'Nulípara') 
+              if (controller.animal['parity']?.toString().trim() != 'Nulípara')
                 _buildDetailRow("DPP", controller.animal['dpp_status']?.toString() ?? "N/A"),
               _buildDetailRow("Status Atual", controller.animal['reproductive_status']?.toString() ?? "Vazia / Apta"),
             ],
@@ -223,7 +250,7 @@ class PerfilAnimalView extends StatelessWidget {
           const Divider(),
           const SizedBox(height: 12),
           
-          // QR Code (Apenas visualização)
+          // QR Code (Apenas visualização usando o ID numérico do banco)
           Center(
             child: AnimalQRCodeWidget(
               animalId: controller.animal['id']?.toString() ?? "0",
@@ -242,7 +269,10 @@ class PerfilAnimalView extends StatelessWidget {
     if (category == 'Ovino') assetPath = 'assets/images/ovino_default.png';
     if (category == 'Caprino') assetPath = 'assets/images/caprino_default.png';
 
-    return Image.asset(assetPath, fit: BoxFit.cover);
+    return Opacity(
+      opacity: 0.5,
+      child: Image.asset(assetPath, fit: BoxFit.cover),
+    );
   }
 
   Widget _buildInfoCard(String title, IconData icon, List<Widget> children) {

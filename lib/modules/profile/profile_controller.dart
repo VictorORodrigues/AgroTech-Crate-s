@@ -1,79 +1,224 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 import '../../utils/agro_alerts.dart';
+import '../../services/sync_service.dart';
+import '../home/home_controller.dart';
 
 class ProfileController extends GetxController {
   final _storage = GetStorage();
   final _auth = FirebaseAuth.instance;
+  final ImagePicker _picker = ImagePicker();
 
+  // Dados Pessoais
   var userName = "".obs;
-  var farmName = "".obs;
-  var location = "".obs;
   var email = "".obs;
+  var phone = "".obs;
   var photoUrl = "".obs;
+  var localPhotoPath = "".obs;
+
+  // Dados da Propriedade
+  var farmName = "".obs;
+  var carCode = "".obs;
+  var location = "".obs;
+  var selectedDistrict = "".obs;
+  var isOtherDistrict = false.obs;
+
+  final List<String> districts = [
+    "Assis", "Crateús (distrito-sede)", "Curral Velho", "Ibiapaba",
+    "Irapuã", "Lagoa das Pedras", "Montenebo", "Oiticica",
+    "Poti", "Realejo", "Santana", "Santo Antônio", "Tucuns", "Outro..."
+  ];
 
   var isEditing = false.obs;
+  var isGoogleAccount = false.obs;
+  var isSaving = false.obs;
   
-  // Controllers para edição
+  // Controllers e Máscaras
   late TextEditingController nameCtrl;
+  late TextEditingController emailCtrl;
+  late TextEditingController phoneCtrl;
   late TextEditingController farmCtrl;
+  late TextEditingController carCodeCtrl;
   late TextEditingController locationCtrl;
+
+  final phoneMask = MaskTextInputFormatter(mask: '(##) #####-####', filter: {"#": RegExp(r'[0-9]')});
 
   @override
   void onInit() {
     super.onInit();
     _loadUserData();
-    
-    nameCtrl = TextEditingController(text: userName.value);
-    farmCtrl = TextEditingController(text: farmName.value);
-    locationCtrl = TextEditingController(text: location.value);
+    _initControllers();
   }
 
   void _loadUserData() {
     final User? user = _auth.currentUser;
+    isGoogleAccount.value = user?.providerData.any((p) => p.providerId == 'google.com') ?? false;
+
     userName.value = _storage.read('userName') ?? user?.displayName ?? "Produtor";
-    farmName.value = _storage.read('farmName') ?? "Minha Fazenda";
-    location.value = _storage.read('location') ?? "Crateús, CE";
-    email.value = user?.email ?? "Não informado";
+    email.value = _storage.read('userEmail') ?? user?.email ?? "";
+    phone.value = _storage.read('userPhone') ?? "";
     photoUrl.value = user?.photoURL ?? "";
+    localPhotoPath.value = _storage.read('userPhotoPath') ?? "";
+
+    farmName.value = _storage.read('farmName') ?? "Minha Fazenda";
+    carCode.value = _storage.read('carCode') ?? "";
+    location.value = _storage.read('location') ?? "Crateús, CE";
+
+    if (districts.contains(location.value)) {
+      selectedDistrict.value = location.value;
+      isOtherDistrict.value = false;
+    } else {
+      selectedDistrict.value = "Outro...";
+      isOtherDistrict.value = true;
+    }
+  }
+
+  void _initControllers() {
+    nameCtrl = TextEditingController(text: userName.value);
+    emailCtrl = TextEditingController(text: email.value);
+    phoneCtrl = TextEditingController(text: phone.value);
+    farmCtrl = TextEditingController(text: farmName.value);
+    carCodeCtrl = TextEditingController(text: carCode.value);
+    locationCtrl = TextEditingController(text: isOtherDistrict.value ? location.value : "");
+  }
+
+  void resetFields() {
+    _loadUserData();
+    _initControllers();
+  }
+
+  void setDistrict(String val) {
+    selectedDistrict.value = val;
+    isOtherDistrict.value = (val == "Outro...");
+    if (!isOtherDistrict.value) {
+      locationCtrl.clear();
+    }
   }
 
   void toggleEdit() {
     if (isEditing.value) {
-      // Se estava editando e cancelou, restaura valores
-      nameCtrl.text = userName.value;
-      farmCtrl.text = farmName.value;
-      locationCtrl.text = location.value;
+      // Se estava editando e cancelou (clicou no X ou voltou), restaura valores originais
+      _initControllers();
+      // Restaura a foto original se mudou mas não salvou
+      localPhotoPath.value = _storage.read('userPhotoPath') ?? "";
     }
     isEditing.value = !isEditing.value;
   }
 
+  bool hasChanges() {
+    if (!isEditing.value) return false;
+    
+    String finalLocation = isOtherDistrict.value ? locationCtrl.text.trim() : selectedDistrict.value;
+    String savedPhotoPath = _storage.read('userPhotoPath') ?? "";
+
+    return nameCtrl.text.trim() != userName.value ||
+           emailCtrl.text.trim() != email.value ||
+           phoneCtrl.text != phone.value ||
+           farmCtrl.text.trim() != farmName.value ||
+           carCodeCtrl.text.trim() != carCode.value ||
+           finalLocation != location.value ||
+           localPhotoPath.value != savedPhotoPath;
+  }
+
+  Future<void> pickImage(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(source: source, imageQuality: 50);
+      if (pickedFile != null) {
+        final croppedFile = await ImageCropper().cropImage(
+          sourcePath: pickedFile.path,
+          aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+          uiSettings: [
+            AndroidUiSettings(
+              toolbarTitle: 'Ajustar Foto',
+              toolbarColor: Colors.green[800],
+              toolbarWidgetColor: Colors.white,
+              initAspectRatio: CropAspectRatioPreset.square,
+              lockAspectRatio: true,
+            ),
+          ],
+        );
+
+        if (croppedFile != null) {
+          // Apenas atualiza a UI, não salva no storage ainda (será salvo no saveProfile)
+          localPhotoPath.value = croppedFile.path;
+        }
+      }
+    } catch (e) {
+      AgroAlert.show(title: "Erro", message: "Falha ao selecionar imagem.", isError: true);
+    }
+  }
+
+  Future<void> removePhoto() async {
+    localPhotoPath.value = "";
+    // Se quiser que a remoção seja instantânea mesmo sem clicar em salvar, descomente abaixo:
+    // _storage.write('userPhotoPath', "");
+  }
+
   Future<void> saveProfile() async {
-    if (nameCtrl.text.trim().isEmpty || farmCtrl.text.trim().isEmpty) {
+    String fullName = nameCtrl.text.trim();
+    String farm = farmCtrl.text.trim();
+
+    if (fullName.isEmpty || farm.isEmpty) {
       AgroAlert.show(title: "Campos obrigatórios", message: "Nome e Fazenda não podem ficar vazios.", isError: true);
       return;
     }
 
     try {
-      userName.value = nameCtrl.text.trim();
-      farmName.value = farmCtrl.text.trim();
-      location.value = locationCtrl.text.trim();
+      isSaving.value = true;
+      String finalLocation = isOtherDistrict.value ? locationCtrl.text.trim() : selectedDistrict.value;
+      if (finalLocation.isEmpty) finalLocation = "Crateús, CE";
 
-      _storage.write('userName', userName.value);
-      _storage.write('farmName', farmName.value);
-      _storage.write('location', location.value);
+      // 1. Persistência Local Imediata (Offline First)
+      _storage.write('userName', fullName);
+      _storage.write('userEmail', emailCtrl.text.trim());
+      _storage.write('userPhone', phoneCtrl.text);
+      _storage.write('farmName', farm);
+      _storage.write('carCode', carCodeCtrl.text.trim());
+      _storage.write('location', finalLocation);
+      _storage.write('userPhotoPath', localPhotoPath.value);
 
-      // Opcional: Atualizar no Firebase DisplayName
+      // 2. Atualiza Variáveis Reativas do App
+      userName.value = fullName;
+      email.value = emailCtrl.text.trim();
+      phone.value = phoneCtrl.text;
+      farmName.value = farm;
+      carCode.value = carCodeCtrl.text.trim();
+      location.value = finalLocation;
+
+      // 3. Atualiza Firebase em Background (Não trava a UI)
+      SyncService.instance.saveUserProfileToCloud(
+        userName: fullName,
+        userPhone: phoneCtrl.text,
+        farmName: farm,
+        location: finalLocation,
+        userPhotoPath: localPhotoPath.value,
+      ).catchError((e) => print("Erro ao subir perfil: $e"));
+
       if (_auth.currentUser != null) {
-        await _auth.currentUser!.updateDisplayName(userName.value);
+        _auth.currentUser!.updateDisplayName(fullName);
+      }
+
+      // 4. Notifica Home
+      if (Get.isRegistered<HomeController>()) {
+        Get.find<HomeController>().loadUserProfile();
       }
 
       isEditing.value = false;
-      AgroAlert.show(title: "Sucesso", message: "Perfil atualizado com sucesso!", isSuccess: true);
+      isSaving.value = false;
+      
+      // 5. Sucesso
+      Get.back(); // Fecha a tela de edição
+      AgroAlert.show(title: "Perfil Salvo", message: "Suas informações foram atualizadas com sucesso!", isSuccess: true);
+      
     } catch (e) {
-      AgroAlert.show(title: "Erro", message: "Falha ao salvar perfil: $e", isError: true);
+      isSaving.value = false;
+      AgroAlert.show(title: "Erro ao Salvar", message: "Ocorreu um erro técnico: $e", isError: true);
     }
   }
 
@@ -95,31 +240,37 @@ class ProfileController extends GetxController {
     );
   }
 
+  Future<void> logout() async {
+    try {
+      await _auth.signOut();
+      Get.offAllNamed('/login');
+    } catch (e) {
+      Get.offAllNamed('/login');
+    }
+  }
+
   Future<void> _deleteAccount() async {
     try {
-      // 1. Limpar Storage
       await _storage.erase();
-      
-      // 2. Tentar excluir do Firebase (Pode exigir re-autenticação recente)
       if (_auth.currentUser != null) {
         await _auth.currentUser!.delete();
       }
-
       Get.offAllNamed('/login');
-      AgroAlert.show(title: "Conta Excluída", message: "Sentiremos sua falta, produtor. Seus dados foram removidos.");
     } catch (e) {
-      // Se falhar por segurança (re-autenticação), apenas deslogamos e limpamos local
       await _auth.signOut();
       Get.offAllNamed('/login');
-      AgroAlert.show(title: "Aviso", message: "Para sua segurança, a exclusão total exige login recente. Sua sessão foi encerrada e dados locais limpos.");
     }
   }
 
   @override
   void onClose() {
     nameCtrl.dispose();
+    emailCtrl.dispose();
+    phoneCtrl.dispose();
     farmCtrl.dispose();
+    carCodeCtrl.dispose();
     locationCtrl.dispose();
     super.onClose();
   }
 }
+

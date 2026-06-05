@@ -3,15 +3,25 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../../../database/database_helper.dart';
+import '../../utils/agro_alerts.dart';
+import '../activities_history/activities_history_controller.dart';
+import '../rebanho/detalhes_rebanho/detalhes_rebanho_controller.dart';
+import '../rebanho/rebanho_controller.dart';
+import '../rebanho/perfil_animal/perfil_animal_controller.dart';
 
 class CalendarController extends GetxController {
   var calendarFormat = CalendarFormat.month.obs;
   var focusedDay = DateTime.now().obs;
   var selectedDay = DateTime.now().obs;
   
+  // Limites do Calendário
+  final int minYear = 1950;
+  final int maxYear = 2100;
+
   // Estados de visibilidade dos seletores
   var isMonthPickerVisible = false.obs;
   var isYearPickerVisible = false.obs;
+  var yearPickerStartYear = (DateTime.now().year - 6).obs; // Início do range de anos exibido
   
   var isLoading = false.obs;
   var allEvents = <Map<String, dynamic>>[].obs;
@@ -83,10 +93,58 @@ class CalendarController extends GetxController {
   // Estado para expansão dinâmica do calendário baseado no arraste das tarefas
   var currentSheetSize = 0.4.obs;
 
+  // Multi-seleção de eventos
+  var selectedEventIds = <int>{}.obs;
+
   @override
   void onInit() {
     super.onInit();
     loadEvents();
+  }
+
+  void toggleEventSelection(int id) {
+    if (selectedEventIds.contains(id)) {
+      selectedEventIds.remove(id);
+    } else {
+      selectedEventIds.add(id);
+    }
+  }
+
+  void clearSelection() {
+    selectedEventIds.clear();
+  }
+
+  Future<void> deleteSelectedEvents() async {
+    try {
+      for (int id in selectedEventIds) {
+        // Utiliza a nova lógica de exclusão em cascata (árvore reprodutiva)
+        await DatabaseHelper.instance.deleteActivityChain(id);
+      }
+      
+      clearSelection();
+      await loadEvents();
+      
+      _syncAllControllers();
+      
+      AgroAlert.show(title: "Excluídos", message: "Os registros e seus desdobramentos técnicos foram removidos.");
+    } catch (e) {
+      AgroAlert.show(title: "Erro", message: "Falha ao excluir registros: $e", isError: true);
+    }
+  }
+
+  void _syncAllControllers() {
+    if (Get.isRegistered<ActivitiesHistoryController>()) {
+      Get.find<ActivitiesHistoryController>().loadAllEvents();
+    }
+    if (Get.isRegistered<PerfilAnimalController>()) {
+      Get.find<PerfilAnimalController>().carregarDadosDoBanco(Get.find<PerfilAnimalController>().animal['id']);
+    }
+    if (Get.isRegistered<DetalhesRebanhoController>()) {
+      Get.find<DetalhesRebanhoController>().carregarDados();
+    }
+    if (Get.isRegistered<RebanhoController>()) {
+      Get.find<RebanhoController>().carregarRebanhos();
+    }
   }
 
   void toggleMonthPicker() {
@@ -97,6 +155,22 @@ class CalendarController extends GetxController {
   void toggleYearPicker() {
     isYearPickerVisible.value = !isYearPickerVisible.value;
     isMonthPickerVisible.value = false;
+    if (isYearPickerVisible.value) {
+      // Centraliza o range no ano focado atualmente
+      yearPickerStartYear.value = focusedDay.value.year - 6;
+    }
+  }
+
+  void previousYearRange() {
+    if (yearPickerStartYear.value - 12 >= minYear - 11) {
+      yearPickerStartYear.value -= 12;
+    }
+  }
+
+  void nextYearRange() {
+    if (yearPickerStartYear.value + 12 <= maxYear) {
+      yearPickerStartYear.value += 12;
+    }
   }
 
   void selectMonth(int monthIndex) {
@@ -105,7 +179,11 @@ class CalendarController extends GetxController {
   }
 
   void selectYear(int year) {
-    focusedDay.value = DateTime(year, focusedDay.value.month, focusedDay.value.day);
+    int clampedYear = year;
+    if (clampedYear < minYear) clampedYear = minYear;
+    if (clampedYear > maxYear) clampedYear = maxYear;
+    
+    focusedDay.value = DateTime(clampedYear, focusedDay.value.month, focusedDay.value.day);
     isYearPickerVisible.value = false;
   }
 
@@ -119,18 +197,20 @@ class CalendarController extends GetxController {
         taskDate.value.year,
         taskDate.value.month,
         taskDate.value.day,
-        isAllDay.value ? 0 : taskTime.value.hour,
-        isAllDay.value ? 0 : taskTime.value.minute,
+        taskTime.value.hour,
+        taskTime.value.minute,
       );
 
       await db.insert('animal_events', {
-        'animal_id': null, // Tarefas genéricas não precisam de animal
+        'animal_id': null,
+        'herd_id': null,
         'type': taskTitle.value,
         'date': finalDate.toIso8601String(),
         'description': taskDetails.value,
-        'is_task': isTask.value ? 1 : 0,
-        'is_all_day': isAllDay.value ? 1 : 0,
+        'is_task': 1,
+        'is_all_day': 0,
         'color_hex': selectedTaskColor.value.value.toRadixString(16),
+        'text_value_1': 'Pendente', // Status inicial para tarefas
       });
 
       await loadEvents();
@@ -139,7 +219,6 @@ class CalendarController extends GetxController {
       // Limpar campos
       taskTitle.value = "";
       taskDetails.value = "";
-      isAllDay.value = false;
     } catch (e) {
       print("Erro ao salvar tarefa: $e");
     }
@@ -151,10 +230,13 @@ class CalendarController extends GetxController {
       final db = await DatabaseHelper.instance.database;
       
       final results = await db.rawQuery('''
-        SELECT ae.*, a.identifier, a.name as animal_name, h.category, h.name as herd_name
+        SELECT ae.*, a.identifier, a.name as animal_name, a.breed_name,
+               COALESCE(h_animal.name, h_event.name) as herd_name,
+               COALESCE(h_animal.category, h_event.category) as category
         FROM animal_events ae
         LEFT JOIN animals a ON ae.animal_id = a.id
-        LEFT JOIN herds h ON a.herd_id = h.id
+        LEFT JOIN herds h_animal ON a.herd_id = h_animal.id
+        LEFT JOIN herds h_event ON ae.herd_id = h_event.id
       ''');
       allEvents.value = results;
     } catch (e) {
@@ -171,35 +253,7 @@ class CalendarController extends GetxController {
       return date.year == day.year && date.month == day.month && date.day == day.day;
     }).toList();
 
-    // 2. Filtra por categoria técnica
-    if (selectedFilter.value != "Todos") {
-      events = events.where((e) {
-        final type = e['type'].toString();
-        if (selectedFilter.value == "Nutrição") {
-          return type == "Pesagem e Escore" || type == "Produção de Leite";
-        }
-        if (selectedFilter.value == "Reprodução") {
-          return type == "Inseminação Artificial" || type == "Nascimento" || 
-                 type == "Diagnóstico de Toque" || type == "Aborto / Perda Gestacional";
-        }
-        if (selectedFilter.value == "Saúde") {
-          return type == "Vacinação" || type == "Medicamento";
-        }
-        return true;
-      }).toList();
-    }
-
-    // 3. Filtra por espécie
-    if (selectedSpeciesFilter.value != "Todas") {
-      events = events.where((e) {
-        // Para tarefas genéricas (animal_id = null), podemos decidir se mostramos ou não.
-        // Geralmente mostramos em "Todas" e filtramos quando uma espécie específica é pedida.
-        if (e['animal_id'] == null) return false; 
-        return e['category'] == selectedSpeciesFilter.value;
-      }).toList();
-    }
-
-    // 4. Ordena por hora crescente
+    // 2. Ordena por hora crescente
     events.sort((a, b) {
       final dateA = DateTime.parse(a['date']);
       final dateB = DateTime.parse(b['date']);
@@ -207,5 +261,13 @@ class CalendarController extends GetxController {
     });
 
     return events;
+  }
+
+  List<Map<String, dynamic>> getActivitiesForDay(DateTime day) {
+    return getEventsForDay(day).where((e) => e['is_task'] == 0 || e['is_task'] == null).toList();
+  }
+
+  List<Map<String, dynamic>> getTasksForDay(DateTime day) {
+    return getEventsForDay(day).where((e) => e['is_task'] == 1).toList();
   }
 }

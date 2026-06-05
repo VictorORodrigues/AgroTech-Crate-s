@@ -38,7 +38,7 @@ class LoginView extends StatelessWidget {
                 ),
                 SizedBox(height: 16),
                 Text(
-                  'AgroGen Crateús',
+                  'AgroTech Crateús',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,

@@ -1,351 +1,491 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import '../../utils/agro_alerts.dart';
+import 'package:intl/intl.dart';
+import 'dashboard_controller.dart';
 import '../../services/report_service.dart';
+import '../../utils/agro_alerts.dart';
 
-/// --- DASHBOARD ANALÍTICO AGROGEN ---
-/// Esta tela representa o núcleo de inteligência de dados do aplicativo.
-/// Ela consolida métricas reprodutivas e climáticas em uma interface moderna.
-
-class ReportsView extends StatefulWidget {
-  @override
-  State<ReportsView> createState() => _ReportsViewState();
-}
-
-class _ReportsViewState extends State<ReportsView> {
-  // Estado local para simular filtros (Mock de dados para o Hackathon)
-  String selectedSpecies = "Consolidado";
-  String selectedPeriod = "Últimos 6 meses";
+class ReportsView extends StatelessWidget {
+  final DashboardController controller = Get.put(DashboardController());
 
   @override
   Widget build(BuildContext context) {
-    final agroDarkGreen = Colors.green[900]!;
-    final agroSoftGreen = Colors.green[50]!;
     final isDark = context.isDarkMode;
+    final Color textColor = isDark ? Colors.white : Colors.black87;
+    final Color cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF8F9FA),
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F7),
       appBar: AppBar(
-        title: const Text("Dashboard Analítico", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.green[800],
+        backgroundColor: Colors.transparent,
         elevation: 0,
-      ),
-      body: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 900),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. SISTEMA DE FILTROS (Chips Interativos)
-                _buildFiltersSection(agroSoftGreen, agroDarkGreen),
-                
-                const SizedBox(height: 24),
-                
-                // 2. GRID DE KPIs (Métricas de Desempenho)
-                _buildKPIGrid(isDark),
-
-                const SizedBox(height: 24),
-
-                // 3. GRÁFICO DE EVOLUÇÃO (Prenhez vs THI)
-                _buildEvolutionChart(isDark, agroDarkGreen),
-
-                const SizedBox(height: 24),
-
-                // 4. LISTA DE INSIGHTS RÁPIDOS
-                _buildSmartInsights(isDark),
-
-                const SizedBox(height: 80), // Espaço para barra inferior
-              ],
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CircleAvatar(
+            backgroundColor: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+            child: IconButton(
+              icon: Icon(Icons.chevron_left, color: textColor),
+              onPressed: () => Get.back(),
             ),
           ),
         ),
+        title: Text(
+          "Inteligência AgroGen",
+          style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18),
+        ),
       ),
-      // 5. BARRA DE EXPORTAÇÃO (Ações do Produtor)
-      bottomSheet: _buildExportBar(isDark),
+      body: RefreshIndicator(
+        onRefresh: () => controller.loadDashboardData(),
+        color: Colors.green[800],
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. SELEÇÃO DE FILTROS GLOBAIS
+              _buildGlobalFilterBar(isDark),
+              
+              const SizedBox(height: 24),
+
+              // 2. KPIS FINANCEIROS (Impacto direto)
+              _buildFinancialKPIs(cardColor, isDark),
+
+              const SizedBox(height: 24),
+
+              // 3. GRÁFICO DE EVOLUÇÃO (Receita vs Despesa)
+              _buildMainEvolutionChart(cardColor, isDark),
+
+              const SizedBox(height: 24),
+
+              // 4. MÓDULO REPRODUTIVO (Eficiência)
+              _buildReproductiveModule(cardColor, isDark),
+
+              const SizedBox(height: 24),
+
+              // 5. RANKING ELITE (Matrizes de Performance)
+              _buildEliteRanking(cardColor, isDark),
+
+              const SizedBox(height: 24),
+
+              // 6. PRÓXIMOS MANEJOS (IA Preditiva)
+              _buildPredictiveManejos(cardColor, isDark),
+
+              const SizedBox(height: 40),
+              
+              // AÇÃO FINAL: EXPORTAÇÃO
+              _buildExportButtons(),
+              
+              const SizedBox(height: 60),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildFiltersSection(Color soft, Color dark) {
+  Widget _buildGlobalFilterBar(bool isDark) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 50,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            children: [
+              _buildFilterChip('Geral', 'Geral', Icons.dashboard_customize_outlined, isDark),
+              const SizedBox(width: 12),
+              _buildFilterChip('Bovino', 'Bovinos', Icons.pets, isDark),
+              const SizedBox(width: 12),
+              _buildFilterChip('Caprino', 'Caprinos', Icons.agriculture, isDark),
+              const SizedBox(width: 12),
+              _buildFilterChip('Ovino', 'Ovinos', Icons.set_meal, isDark),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Obx(() => DropdownButtonFormField<String>(
+          value: controller.selectedPeriod.value,
+          dropdownColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: isDark ? Colors.white10 : Colors.white,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            prefixIcon: const Icon(Icons.calendar_month, size: 18),
+          ),
+          items: ["Últimos 30 dias", "Últimos 6 meses", "Este Ano", "Personalizado"].map((p) => DropdownMenuItem(value: p, child: Text(p, style: TextStyle(color: isDark ? Colors.white : Colors.black87)))).toList(),
+          onChanged: controller.updatePeriod,
+        )),
+      ],
+    );
+  }
+
+  Widget _buildFilterChip(String value, String label, IconData icon, bool isDark) {
+    return Obx(() {
+      final isSelected = controller.selectedSpecies.value == value;
+      return GestureDetector(
+        onTap: () => controller.updateSpecies(value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.green[800] : (isDark ? Colors.white10 : Colors.white),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isSelected ? Colors.green[800]! : Colors.grey.withOpacity(0.15),
+              width: 1.5,
+            ),
+            boxShadow: [
+              if (isSelected) BoxShadow(color: Colors.green.withOpacity(0.2), blurRadius: 12, offset: const Offset(0, 4)),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: isSelected ? Colors.white : Colors.grey),
+              const SizedBox(width: 10),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
+                  fontSize: 14,
+                ),
+                maxLines: 1,
+                softWrap: false,
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildFinancialKPIs(Color cardColor, bool isDark) {
+    final fmt = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: ["Consolidado", "Bovinos", "Caprinos", "Ovinos"].map((s) {
-              bool isSelected = selectedSpecies == s;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  label: Text(s),
-                  selected: isSelected,
-                  selectedColor: Colors.green[800],
-                  labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87),
-                  onSelected: (val) => setState(() => selectedSpecies = s),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        const SizedBox(height: 8),
-        DropdownButton<String>(
-          value: selectedPeriod,
-          isExpanded: true,
-          underline: Container(),
-          icon: const Icon(Icons.calendar_month, size: 18),
-          items: ["Últimos 30 dias", "Últimos 6 meses", "Safra Atual"].map((p) {
-            return DropdownMenuItem(value: p, child: Text(p, style: const TextStyle(fontSize: 14)));
-          }).toList(),
-          onChanged: (v) => setState(() => selectedPeriod = v!),
+        _buildSectionTitle("IMPACTO FINANCEIRO", Icons.account_balance_wallet_outlined),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Obx(() => _buildKPIBox(
+                "Receita Bruta", 
+                fmt.format(controller.totalRevenue.value), 
+                "Ganhos do Período", 
+                Colors.green,
+                cardColor
+              )),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Obx(() => _buildKPIBox(
+                "Custo do Ócio", 
+                fmt.format(controller.idleCost.value), 
+                "Prejuízo com Vazias", 
+                Colors.redAccent,
+                cardColor
+              )),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildKPIGrid(bool isDark) {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.1,
-      children: [
-        _buildKPICard(
-          title: "Taxa de Prenhez",
-          value: "78.4%",
-          subtitle: "+2.1% vs anterior",
-          icon: Icons.trending_up,
-          color: Colors.green,
-          isCircular: true,
-        ),
-        _buildKPICard(
-          title: "Matrizes Ativas",
-          value: "142 / 185",
-          subtitle: "Confirmadas Prenhes",
-          icon: Icons.female,
-          color: Colors.blue,
-        ),
-        _buildKPICard(
-          title: "Média ECC",
-          value: "3.4",
-          subtitle: "Escore Ideal",
-          icon: Icons.health_and_safety_outlined,
-          color: Colors.orange,
-        ),
-        _buildKPICard(
-          title: "Sêmen Salvo",
-          value: "22 doses",
-          subtitle: "Evitado pela IA (Calor)",
-          icon: Icons.savings_outlined,
-          color: Colors.teal,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildKPICard({
-    required String title,
-    required String value,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    bool isCircular = false,
-  }) {
+  Widget _buildMainEvolutionChart(Color cardColor, bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: context.theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10)],
+        color: cardColor,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 20)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: color, size: 20),
-              if (isCircular)
-                SizedBox(
-                  width: 24, height: 24,
-                  child: CircularProgressIndicator(value: 0.78, strokeWidth: 3, color: color, backgroundColor: color.withOpacity(0.1)),
-                ),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Fluxo de Caixa IA", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                  Text("Gastos vs Receitas Projetadas", style: TextStyle(color: Colors.grey, fontSize: 11)),
+                ],
+              ),
+              Row(
+                children: [
+                  _buildLegendDot(Colors.green, "Receita"),
+                  const SizedBox(width: 12),
+                  _buildLegendDot(Colors.redAccent, "Gastos"),
+                ],
+              ),
             ],
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey)),
-            ],
-          ),
-          Text(subtitle, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEvolutionChart(bool isDark, Color darkGreen) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: context.theme.cardColor,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text("Taxa de Prenhez vs Calor (THI)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 4),
-          const Text("Análise de impacto climático semestral", style: TextStyle(color: Colors.grey, fontSize: 12)),
-          const SizedBox(height: 30),
+          const SizedBox(height: 40),
           SizedBox(
-            height: 200,
-            child: LineChart(
+            height: 220,
+            child: Obx(() => LineChart(
               LineChartData(
-                gridData: FlGridData(show: false),
+                gridData: FlGridData(show: true, drawVerticalLine: false, getDrawingHorizontalLine: (v) => FlLine(color: Colors.grey.withOpacity(0.05))),
                 titlesData: FlTitlesData(
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (val, _) => Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(["Jan", "Fev", "Mar", "Abr", "Mai", "Jun"][val.toInt() % 6], style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                      ),
-                    ),
-                  ),
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  show: true,
                   rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 30, getTitlesWidget: (v, _) => Text(['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'][v.toInt() % 6], style: const TextStyle(fontSize: 10, color: Colors.grey)))),
                 ),
                 borderData: FlBorderData(show: false),
                 lineBarsData: [
                   LineChartBarData(
-                    spots: const [FlSpot(0, 70), FlSpot(1, 75), FlSpot(2, 65), FlSpot(3, 80), FlSpot(4, 85), FlSpot(5, 78)],
-                    isCurved: true,
-                    color: Colors.green,
-                    barWidth: 4,
-                    dotData: const FlDotData(show: false),
-                    belowBarData: BarAreaData(show: true, color: Colors.green.withOpacity(0.1)),
+                    spots: controller.revenueTimeline.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+                    isCurved: true, color: Colors.green, barWidth: 4, dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(show: true, color: Colors.green.withOpacity(0.05)),
                   ),
                   LineChartBarData(
-                    spots: const [FlSpot(0, 80), FlSpot(1, 82), FlSpot(2, 85), FlSpot(3, 75), FlSpot(4, 70), FlSpot(5, 72)],
-                    isCurved: true,
-                    color: Colors.orange.withOpacity(0.5),
-                    barWidth: 2,
-                    dashArray: [5, 5],
-                    dotData: const FlDotData(show: false),
+                    spots: controller.expensesTimeline.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+                    isCurved: true, color: Colors.redAccent, barWidth: 3, dotData: const FlDotData(show: false),
                   ),
                 ],
               ),
-            ),
+            )),
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildLegend(Colors.green, "Taxa Prenhez (%)"),
-              const SizedBox(width: 20),
-              _buildLegend(Colors.orange, "Índice THI (Calor)"),
-            ],
-          )
         ],
       ),
     );
   }
 
-  Widget _buildLegend(Color c, String t) {
-    return Row(children: [CircleAvatar(radius: 4, backgroundColor: c), const SizedBox(width: 6), Text(t, style: const TextStyle(fontSize: 11, color: Colors.grey))]);
-  }
-
-  Widget _buildSmartInsights(bool isDark) {
+  Widget _buildReproductiveModule(Color cardColor, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Insights da IA", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        _buildSectionTitle("EFICIÊNCIA REPRODUTIVA", Icons.auto_graph_outlined),
         const SizedBox(height: 12),
-        _buildInsightItem(
-          "O THI médio de Crateús caiu 4 pontos este mês, aumentando a janela de inseminação em 3 horas diárias.",
-          Icons.auto_awesome,
-          Colors.amber,
-        ),
-        _buildInsightItem(
-          "Lote B apresenta ECC abaixo do ideal (2.8). Suplementação recomendada para atingir meta de 80% de prenhez.",
-          Icons.info_outline,
-          Colors.blue,
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(28)),
+          child: Column(
+            children: [
+              const Text("Distribuição de Status de Matrizes", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+              const SizedBox(height: 24),
+              SizedBox(height: 180, child: _buildStatusPieChart()),
+              const SizedBox(height: 32),
+              Row(
+                children: [
+                  Expanded(child: Obx(() => _buildMiniStat("Taxa de Prenhez", "${controller.pregnancyRate.value}%", Colors.green))),
+                  Container(width: 1, height: 40, color: Colors.grey[200]),
+                  Expanded(child: Obx(() => _buildMiniStat("IEP Médio", "${controller.avgIEP.value} meses", controller.avgIEP.value > 12.5 ? Colors.red : Colors.blue))),
+                ],
+              ),
+              const Divider(height: 48),
+              const Text("Taxa de Concepção por Método", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+              const SizedBox(height: 20),
+              SizedBox(height: 160, child: _buildMethodBarChart()),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildInsightItem(String text, IconData icon, Color color) {
+  Widget _buildEliteRanking(Color cardColor, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle("MATRIZES ELITE (TOP 5)", Icons.workspace_premium_outlined),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(24)),
+          child: Obx(() => DataTable(
+            horizontalMargin: 20,
+            columnSpacing: 10,
+            columns: const [
+              DataColumn(label: Text('Identificador', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+              DataColumn(label: Text('Linhagem', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+              DataColumn(label: Text('Crias', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+              DataColumn(label: Text('GMD Cria', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+            ],
+            rows: controller.eliteMatrix.map((m) => DataRow(cells: [
+              DataCell(Text(m['identifier'] ?? "N/A", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13))),
+              DataCell(Text(m['lineage'] ?? "S/L", style: const TextStyle(fontSize: 11))),
+              DataCell(Text(m['crias'].toString(), style: const TextStyle(fontWeight: FontWeight.bold))),
+              DataCell(Text("${(m['gmd'] ?? 0.0).toStringAsFixed(2)}kg", style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 12))),
+            ])).toList(),
+          )),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPredictiveManejos(Color cardColor, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle("IA PREDITIVA: PRÓXIMOS 7 DIAS", Icons.psychology_outlined),
+        const SizedBox(height: 12),
+        Obx(() {
+          if (controller.upcomingEvents.isEmpty) {
+            return _buildEmptyTaskCard(cardColor);
+          }
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: controller.upcomingEvents.length,
+            itemBuilder: (context, index) {
+              final e = controller.upcomingEvents[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(16)),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), shape: BoxShape.circle),
+                      child: const Icon(Icons.bolt, color: Colors.orange, size: 18),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Animal ${e['identifier']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text(e['description'] ?? e['type'], style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                    Text(DateFormat('dd/MM').format(DateTime.parse(e['date'])), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
+                  ],
+                ),
+              );
+            },
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.green[800]),
+        const SizedBox(width: 8),
+        Text(title, style: TextStyle(color: Colors.green[800], fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+      ],
+    );
+  }
+
+  Widget _buildKPIBox(String label, String value, String sub, Color color, Color cardColor) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-      child: Row(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor, 
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withOpacity(0.1), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 12),
-          Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
+          Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+          const SizedBox(height: 8),
+          Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: color)),
+          const SizedBox(height: 4),
+          Text(sub, style: const TextStyle(fontSize: 9, color: Colors.grey)),
         ],
       ),
     );
   }
 
-  Widget _buildExportBar(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: context.theme.cardColor,
-        border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.1))),
+  Widget _buildMiniStat(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+        const SizedBox(height: 4),
+        Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: color)),
+      ],
+    );
+  }
+
+  Widget _buildStatusPieChart() {
+    return Obx(() => PieChart(
+      PieChartData(
+        sectionsSpace: 6,
+        centerSpaceRadius: 50,
+        sections: controller.matrixStatusData.entries.map((e) {
+          return PieChartSectionData(
+            color: _getPieColor(e.key), 
+            value: e.value, 
+            title: '${e.value.toInt()}',
+            radius: 40,
+            titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+          );
+        }).toList(),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                try {
-                  await ReportService.generateAndShareCSV();
-                } catch (e) {
-                  AgroAlert.show(title: "Erro", message: e.toString(), isError: true);
-                }
-              },
-              icon: const Icon(Icons.table_view_outlined, size: 18),
-              label: const Text("Planilha CSV", style: TextStyle(fontWeight: FontWeight.bold)),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                try {
-                  await ReportService.generateAndSharePDF();
-                } catch (e) {
-                  AgroAlert.show(title: "Erro", message: e.toString(), isError: true);
-                }
-              },
-              icon: const Icon(Icons.picture_as_pdf_outlined, size: 18, color: Colors.white),
-              label: const Text("Relatório PDF", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green[800],
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ),
+    ));
+  }
+
+  Color _getPieColor(String status) {
+    if (status.contains("Prenhe")) return Colors.green;
+    if (status.contains("Vazia")) return Colors.redAccent;
+    if (status.contains("Lactação")) return Colors.blue;
+    return Colors.orange;
+  }
+
+  Widget _buildMethodBarChart() {
+    return Obx(() => BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: 100,
+        titlesData: FlTitlesData(
+          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (v, _) => Text(v == 0 ? "IA / IATF" : "Monta Natural", style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)))),
+          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        gridData: FlGridData(show: false),
+        borderData: FlBorderData(show: false),
+        barGroups: [
+          BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: controller.conceptionRates['IA'] ?? 75.0, color: Colors.blue, width: 30, borderRadius: BorderRadius.circular(8))]),
+          BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: controller.conceptionRates['Monta'] ?? 55.0, color: Colors.orange, width: 30, borderRadius: BorderRadius.circular(8))]),
         ],
       ),
+    ));
+  }
+
+  Widget _buildLegendDot(Color c, String t) {
+    return Row(children: [CircleAvatar(radius: 4, backgroundColor: c), const SizedBox(width: 4), Text(t, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey))]);
+  }
+
+  Widget _buildEmptyTaskCard(Color cardColor) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(24)),
+      child: Column(
+        children: [
+          Icon(Icons.check_circle_outline, color: Colors.green.withOpacity(0.3), size: 48),
+          const SizedBox(height: 12),
+          const Text("Agenda Livre", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+          const Text("Nenhum manejo crítico para a próxima semana.", style: TextStyle(color: Colors.grey, fontSize: 11)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExportButtons() {
+    return Row(
+      children: [
+        Expanded(child: OutlinedButton.icon(onPressed: () => ReportService.generateAndShareCSV(), icon: const Icon(Icons.table_chart_outlined), label: const Text("Exportar CSV", style: TextStyle(fontWeight: FontWeight.bold)))),
+        const SizedBox(width: 12),
+        Expanded(child: ElevatedButton.icon(onPressed: () => ReportService.generateAndSharePDF(), icon: const Icon(Icons.picture_as_pdf, color: Colors.white), label: const Text("Gerar PDF Técnico", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), style: ElevatedButton.styleFrom(backgroundColor: Colors.green[800]))),
+      ],
     );
   }
 }

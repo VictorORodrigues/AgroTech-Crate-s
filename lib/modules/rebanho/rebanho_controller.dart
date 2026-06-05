@@ -37,6 +37,47 @@ class RebanhoController extends GetxController with GetSingleTickerProviderState
     });
 
     carregarRebanhos();
+    _autoUpdateAnimalAges();
+  }
+
+  /// Atualiza automaticamente a idade de todos os animais
+  Future<void> _autoUpdateAnimalAges() async {
+    try {
+      final db = await DatabaseHelper.instance.database;
+      final animals = await db.query('animals');
+      final now = DateTime.now();
+
+      for (var a in animals) {
+        int currentAgeInDb = a['age_months'] as int? ?? 0;
+        int calculatedAge = currentAgeInDb;
+
+        if (a['birth_date'] != null) {
+          // 1. Cálculo Baseado na Data de Nascimento Real
+          DateTime birth = DateTime.parse(a['birth_date'].toString());
+          calculatedAge = (now.year - birth.year) * 12 + now.month - birth.month;
+          if (now.day < birth.day) calculatedAge--; 
+        } else if (a['created_at'] != null) {
+          // 2. Cálculo Baseado na Data de Registro + Idade Inicial
+          DateTime created = DateTime.parse(a['created_at'].toString());
+          int initialAge = a['initial_age_months'] as int? ?? currentAgeInDb;
+          
+          int monthsSinceCreation = (now.year - created.year) * 12 + now.month - created.month;
+          if (now.day < created.day) monthsSinceCreation--;
+
+          calculatedAge = initialAge + monthsSinceCreation;
+        }
+
+        if (calculatedAge < 0) calculatedAge = 0;
+        
+        // Só atualiza o banco se a idade mudou para economizar processamento
+        if (calculatedAge != currentAgeInDb) {
+          await db.update('animals', {'age_months': calculatedAge}, where: 'id = ?', whereArgs: [a['id']]);
+        }
+      }
+      // O carregarRebanhos() no onInit já vai pegar os dados atualizados pois esta função é awaitada ou roda em paralelo
+    } catch (e) {
+      print("Erro ao atualizar idades: $e");
+    }
   }
 
   // Métodos de Paginação

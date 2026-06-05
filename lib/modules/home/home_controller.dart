@@ -7,19 +7,44 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
+import '../../services/noticias_service.dart';
+import '../../models/noticia_model.dart';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/sync_service.dart';
+import '../../database/database_helper.dart';
+import 'notifications_controller.dart';
 
 class HomeController extends GetxController {
   final _storage = GetStorage();
+  final _noticiasService = NoticiasService();
+  final notificationsController = Get.put(NotificationsController());
   
-  final String _apiKey = "786443c5b36484397985794823861274"; 
+  // Chave Técnica OpenWeather
+  final String _apiKey = "5ea0840b8529367140b08075f782390f"; 
 
   // Dados Climáticos Observáveis
   var temperatura = "--°C".obs;
   var umidade = "--%".obs;
   var thi = "--".obs;
+  var climaIcon = "01d".obs; // Código do ícone do OpenWeather
   var lastUpdate = "Carregando...".obs;
   var localizacao = "Detectando...".obs;
-  var isLoading = false.obs;
+  var isLoadingWeather = false.obs;
+  var isOffline = false.obs;
+
+  // Notícias
+  var noticias = <NoticiaModel>[].obs;
+  var isLoadingNoticias = false.obs;
+  var hasNoticiasError = false.obs;
+
+  // Dados do Usuário Reativos
+  var userName = "Usuário".obs;
+  var firstName = "Produtor".obs;
+  var farmName = "Sua Fazenda".obs;
+  var userLocation = "Crateús, CE".obs;
+  var userPhotoPath = "".obs;
+  var networkPhotoUrl = "".obs;
 
   Timer? _timer;
 
@@ -28,7 +53,22 @@ class HomeController extends GetxController {
     super.onInit();
     initializeDateFormatting('pt_BR', null);
     _loadInitialData();
+    loadUserProfile();
     _startAutoUpdate();
+    fetchNoticias();
+    SyncService.instance.syncLocalToCloud(); // Inicia sincronia silenciosa
+  }
+
+  void loadUserProfile() {
+    final User? user = FirebaseAuth.instance.currentUser;
+    networkPhotoUrl.value = user?.photoURL ?? "";
+    userPhotoPath.value = _storage.read('userPhotoPath') ?? "";
+    
+    final full = _storage.read('userName') ?? user?.displayName ?? "Usuário";
+    userName.value = full;
+    firstName.value = full.split(' ').first;
+    farmName.value = _storage.read('farmName') ?? "Sua Fazenda";
+    userLocation.value = _storage.read('location') ?? "Crateús, CE";
   }
 
   void _loadInitialData() {
@@ -36,23 +76,37 @@ class HomeController extends GetxController {
       temperatura.value = _storage.read('last_temp');
       umidade.value = _storage.read('last_umid');
       thi.value = _storage.read('last_thi');
+      climaIcon.value = _storage.read('last_icon') ?? "01d";
       lastUpdate.value = _storage.read('last_time');
       localizacao.value = _storage.read('last_loc') ?? "Crateús, CE";
     }
     updateWeatherData();
   }
 
+  Future<void> fetchNoticias() async {
+    try {
+      isLoadingNoticias.value = true;
+      hasNoticiasError.value = false;
+      final result = await _noticiasService.fetchNoticias();
+      noticias.value = result;
+    } catch (e) {
+      hasNoticiasError.value = true;
+      print("Erro ao buscar notícias: $e");
+    } finally {
+      isLoadingNoticias.value = false;
+    }
+  }
+
   void _startAutoUpdate() {
-    // Configura atualização periódica de 1 em 1 hora conforme solicitado
     _timer = Timer.periodic(const Duration(hours: 1), (timer) {
       updateWeatherData();
+      fetchNoticias();
     });
   }
 
   Future<void> updateWeatherData() async {
     try {
-      isLoading.value = true;
-      
+      isLoadingWeather.value = true;
       Position? position = await _determinePosition();
       
       Uri url;
@@ -73,33 +127,33 @@ class HomeController extends GetxController {
         double temp = data['main']['temp'].toDouble();
         double umid = data['main']['humidity'].toDouble();
         String cityName = data['name'];
+        String iconCode = data['weather'][0]['icon'];
         
-        // FÓRMULA REAL DO THI (Thom, 1959) - IDÊNTICA À IA
         double thiValue = (1.8 * temp + 32) - ((0.55 - 0.0055 * umid) * (1.8 * temp - 26));
+
+        _checkThiChange(thiValue);
 
         temperatura.value = "${temp.toStringAsFixed(1)}°C";
         umidade.value = "${umid.toInt()}%";
         thi.value = thiValue.toStringAsFixed(1);
+        climaIcon.value = iconCode;
         
-        if (position != null) {
-          localizacao.value = "$cityName, ${data['sys']['country']}";
-        } else {
-          localizacao.value = "Crateús, CE";
-        }
+        localizacao.value = position != null ? "$cityName, ${data['sys']['country']}" : "Crateús, CE";
 
+        isOffline.value = false;
         _updateTime();
         _saveDataLocally();
-        print("Monitoramento Automático: Clima atualizado via API.");
       } else {
+        print("CLIMA ERROR: Status ${response.statusCode} - ${response.body}");
+        isOffline.value = true;
         _simulateFallback();
       }
     } catch (e) {
-      print("Monitoramento Automático: Erro na rede. Usando cache local.");
-      if (!_storage.hasData('last_temp')) {
-        _simulateFallback();
-      }
+      print("CLIMA EXCEPTION: $e");
+      isOffline.value = true;
+      _simulateFallback();
     } finally {
-      isLoading.value = false;
+      isLoadingWeather.value = false;
     }
   }
 
@@ -133,14 +187,16 @@ class HomeController extends GetxController {
       temperatura.value = _storage.read('last_temp');
       umidade.value = _storage.read('last_umid');
       thi.value = _storage.read('last_thi');
+      climaIcon.value = _storage.read('last_icon') ?? "01d";
       localizacao.value = _storage.read('last_loc');
     } else {
-      temperatura.value = "31.5°C";
-      umidade.value = "25%";
-      thi.value = "79.2";
+      temperatura.value = "26.5°C";
+      umidade.value = "54%";
+      thi.value = "76.8";
+      climaIcon.value = "01d";
       localizacao.value = "Crateús, CE";
+      _updateTime();
     }
-    _updateTime();
   }
 
   void _updateTime() {
@@ -152,8 +208,64 @@ class HomeController extends GetxController {
     _storage.write('last_temp', temperatura.value);
     _storage.write('last_umid', umidade.value);
     _storage.write('last_thi', thi.value);
+    _storage.write('last_icon', climaIcon.value);
     _storage.write('last_time', lastUpdate.value);
     _storage.write('last_loc', localizacao.value);
+  }
+
+  void _checkThiChange(double currentThi) async {
+    String currentStatus = _getThiStatus(currentThi);
+    String? lastStatus = _storage.read('last_thi_status');
+
+    if (lastStatus != currentStatus) {
+      _storage.write('last_thi_status', currentStatus);
+      
+      String title = "Mudança Climática: THI $currentStatus";
+      String message = _getThiRecommendation(currentStatus, currentThi);
+
+      final db = await DatabaseHelper.instance.database;
+      await db.insert('app_notifications', {
+        'event_id': null,
+        'title': title,
+        'message': message,
+        'date': DateTime.now().toIso8601String(),
+        'is_read': 0,
+      });
+      
+      notificationsController.loadNotifications();
+    }
+  }
+
+  String _getThiStatus(double thi) {
+    if (thi < 72) return "Conforto";
+    if (thi <= 78) return "Estresse Leve";
+    if (thi <= 88) return "Estresse Moderado";
+    return "Estresse Grave";
+  }
+
+  String _getThiRecommendation(String status, double val) {
+    switch (status) {
+      case "Conforto":
+        return "Clima ideal (THI ${val.toStringAsFixed(1)}). Excelente janela para inseminações e manejos intensivos. Os animais estão em alto vigor metabólico.";
+      case "Estresse Leve":
+        return "Atenção (THI ${val.toStringAsFixed(1)}). Inicie o monitoramento de sombra. A eficiência da IA pode começar a oscilar levemente.";
+      case "Estresse Moderado":
+        return "Alerta Crítico (THI ${val.toStringAsFixed(1)}). Aumente a oferta de água e evite movimentar o gado nas horas mais quentes. Baixa taxa de concepção esperada.";
+      case "Estresse Grave":
+        return "PERIGO TÉCNICO (THI ${val.toStringAsFixed(1)}). Risco de perda embrionária e estresse calórico severo. NÃO realize inseminações. Priorize resfriamento e hidratação total.";
+      default:
+        return "O índice THI mudou para $status. Verifique as condições do rebanho.";
+    }
+  }
+
+  Future<void> refreshHome() async {
+    // Dispara todas as atualizações em paralelo
+    await Future.wait([
+      updateWeatherData(),
+      fetchNoticias(),
+      SyncService.instance.syncLocalToCloud(), // Sincroniza ao puxar para atualizar
+      notificationsController.refreshNotifications(), // Verifica novas notificações
+    ]);
   }
 
   @override

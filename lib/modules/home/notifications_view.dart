@@ -1,175 +1,205 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
+import 'notifications_controller.dart';
 
 class NotificationsView extends StatelessWidget {
+  final NotificationsController controller = Get.put(NotificationsController());
+
   @override
   Widget build(BuildContext context) {
+    final isDark = context.isDarkMode;
+
     return Scaffold(
-      backgroundColor: context.theme.scaffoldBackgroundColor,
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F7),
       appBar: AppBar(
-        title: const Text("Central de Notificações", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.green[800],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildCategoryHeader("Alertas Bioclimáticos", Icons.wb_sunny_outlined),
-          _buildNotificationCard(
-            title: "Calor Crítico no Confinamento!",
-            message: "O índice THI atingiu 78 nesta tarde. Evite inseminar as vacas exóticas (como a Holandesa 'Majestosa') nas próximas 4 horas. A chance de sucesso caiu para 22% devido ao estresse térmico.",
-            type: "warning",
-            icon: Icons.warning_amber_rounded,
-          ),
-          _buildNotificationCard(
-            title: "Janela de Inseminação Liberada",
-            message: "O clima esfriou e o THI caiu para 68. Momento ideal para realizar o procedimento nas matrizes agendadas e garantir máxima eficiência do sêmen.",
-            type: "success",
-            icon: Icons.check_circle_outline,
-          ),
-          
-          const SizedBox(height: 24),
-          _buildCategoryHeader("Casamento Genético e Manejo", Icons.account_tree_outlined),
-          _buildNotificationCard(
-            title: "Aviso de Segurança Genética",
-            message: "Identificamos que o touro 'Chubby_Bull' entrou no seu catálogo local. Atenção: ele possui parentesco direto com 5 novilhas do seu lote A. O aplicativo já bloqueou esse cruzamento para evitar bezerros fracos.",
-            type: "warning",
-            icon: Icons.block_flipped,
-          ),
-          _buildNotificationCard(
-            title: "Match Perfeito Disponível",
-            message: "A vaca 'Sertaneja' atingiu o Escore Corporal ideal (Nota 4) hoje. Como o seu manejo é Intensivo, o sistema recomenda o sêmen do touro 'Majestoso' para gerar bezerros pesados de corte.",
-            type: "info",
-            icon: Icons.star_outline,
-          ),
-
-          const SizedBox(height: 24),
-          _buildCategoryHeader("Insights Inteligentes do Rebanho", Icons.psychology_outlined),
-          _buildNotificationCard(
-            title: "Novas Matrizes de Elite Detectadas",
-            message: "Nossa IA analisou o histórico e identificou um grupo de 8 cabras (lote de cria) que mantiveram a fertilidade acima de 85% mesmo no pico da seca. Guarde a genética dessas fêmeas!",
-            type: "success",
-            icon: Icons.auto_awesome_outlined,
-          ),
-          _buildNotificationCard(
-            title: "Alerta de Alinhamento Reprodutivo",
-            message: "O grupo de ovelhas jovens (Linhagem PI_D) está precisando de 3 tentativas a mais de monta para emprenhar em comparação com o resto do rebanho. Sugerimos revisar a nutrição desse lote.",
-            type: "error",
-            icon: Icons.analytics_outlined,
-          ),
-
-          const SizedBox(height: 24),
-          _buildCategoryHeader("Manejo Reprodutivo e Rotina", Icons.calendar_today_outlined),
-          _buildNotificationCard(
-            title: "'Mimosa' está pronta",
-            message: "A fêmea completou 60 dias pós-parto e apresenta escore de saúde excelente. A IA liberou a recomendação de reprodutores para ela.",
-            type: "info",
-            icon: Icons.check_circle_outline,
-          ),
-          _buildNotificationCard(
-            title: "Confirmação de Prenhez",
-            message: "Já se passaram 45 dias desde a cobertura da cabra 'Cabrita_01'. Hora de fazer o exame de toque ou ultrassom para confirmar a prenhez e atualizar o app.",
-            type: "info",
-            icon: Icons.hourglass_bottom,
-          ),
-          const SizedBox(height: 40),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryHeader(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: Colors.green[800]),
-          const SizedBox(width: 8),
-          Text(
-            title.toUpperCase(),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.green[800],
-              letterSpacing: 1.2,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CircleAvatar(
+            backgroundColor: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+            child: IconButton(
+              icon: Icon(Icons.chevron_left, color: isDark ? Colors.white : Colors.black87),
+              onPressed: () => Get.back(),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNotificationCard({
-    required String title,
-    required String message,
-    required String type,
-    required IconData icon,
-  }) {
-    Color color;
-    Color bgColor;
-
-    switch (type) {
-      case "warning":
-        color = Colors.orange[800]!;
-        bgColor = Colors.orange[50]!;
-        break;
-      case "success":
-        color = Colors.green[800]!;
-        bgColor = Colors.green[50]!;
-        break;
-      case "error":
-        color = Colors.red[800]!;
-        bgColor = Colors.red[50]!;
-        break;
-      case "info":
-      default:
-        color = Colors.blue[800]!;
-        bgColor = Colors.blue[50]!;
-        break;
-    }
-
-    final isDark = Get.context!.theme.brightness == Brightness.dark;
-    if (isDark) {
-      bgColor = color.withOpacity(0.15);
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? Get.context!.theme.cardColor : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: bgColor, width: 2),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: color, size: 24),
+        ),
+        title: Text(
+          "Notificações",
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.done_all, color: isDark ? Colors.white70 : Colors.green[800], size: 20),
+            tooltip: "Marcar todas como lidas",
+            onPressed: () => controller.markAllAsRead(),
           ),
-          const SizedBox(width: 16),
-          Expanded(
+          const SizedBox(width: 12),
+        ],
+      ),
+      body: Obx(() {
+        if (controller.isLoading.value && controller.notifications.isEmpty) {
+          return const Center(child: CircularProgressIndicator(color: Colors.greenAccent));
+        }
+
+        if (controller.notifications.isEmpty) {
+          return Center(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white.withOpacity(0.03) : Colors.black.withOpacity(0.03),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.notifications_none_outlined, size: 64, color: isDark ? Colors.white24 : Colors.grey[300]),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 24),
                 Text(
-                  message,
-                  style: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[700], fontSize: 13, height: 1.4),
+                  "Sua central está vazia", 
+                  style: TextStyle(color: isDark ? Colors.white70 : Colors.black87, fontWeight: FontWeight.bold, fontSize: 16)
                 ),
+                const SizedBox(height: 8),
+                const Text("Nenhum alerta pendente no momento.", style: TextStyle(color: Colors.grey, fontSize: 13)),
               ],
             ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: controller.refreshNotifications,
+          displacement: 20,
+          color: Colors.green[800],
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 80),
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: controller.notifications.length,
+            itemBuilder: (context, index) {
+              final n = controller.notifications[index];
+              return _buildNotificationCard(n, isDark);
+            },
           ),
-        ],
+        );
+      }),
+    );
+  }
+
+  Widget _buildNotificationCard(Map<String, dynamic> n, bool isDark) {
+    final bool isRead = n['is_read'] == 1;
+    final date = DateTime.parse(n['date']);
+    final type = n['text_value_1'] ?? 'default';
+    
+    IconData icon;
+    Color iconColor;
+    
+    switch(type) {
+      case 'ia':
+        icon = Icons.psychology_outlined;
+        iconColor = Colors.purpleAccent;
+        break;
+      case 'repro':
+        icon = Icons.workspace_premium_outlined;
+        iconColor = Colors.amber;
+        break;
+      case 'warning':
+        icon = Icons.report_problem_outlined;
+        iconColor = Colors.redAccent;
+        break;
+      case 'activity':
+        icon = Icons.assignment_turned_in_outlined;
+        iconColor = Colors.green;
+        break;
+      default:
+        icon = Icons.notifications_active_outlined;
+        iconColor = Colors.green[800]!;
+    }
+    
+    return Dismissible(
+      key: Key(n['id'].toString()),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.8), borderRadius: BorderRadius.circular(24)),
+        child: const Icon(Icons.delete_outline, color: Colors.white),
+      ),
+      onDismissed: (_) => controller.deleteNotification(n['id']),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isRead 
+              ? (isDark ? Colors.white.withOpacity(0.02) : Colors.grey[50])
+              : (isDark ? Colors.white.withOpacity(0.05) : Colors.white),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: isRead ? Colors.transparent : iconColor.withOpacity(0.2),
+            width: 1.5
+          ),
+          boxShadow: [
+            if (!isRead) BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 15, offset: const Offset(0, 8)),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: iconColor,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          n['title'] ?? "Alerta",
+                          style: TextStyle(
+                            fontWeight: isRead ? FontWeight.w600 : FontWeight.w900,
+                            fontSize: 14,
+                            color: isRead ? Colors.grey : (isDark ? Colors.white : Colors.black87),
+                            letterSpacing: -0.3
+                          ),
+                        ),
+                      ),
+                      Text(
+                        DateFormat('HH:mm').format(date),
+                        style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    n['message'] ?? "",
+                    style: TextStyle(
+                      color: isRead ? Colors.grey : (isDark ? Colors.white70 : Colors.grey[800]),
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+

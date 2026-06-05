@@ -29,10 +29,13 @@ class ActivitiesHistoryController extends GetxController with GetSingleTickerPro
       final db = await DatabaseHelper.instance.database;
       
       String queryBase = '''
-        SELECT ae.*, a.identifier, a.name as animal_name, h.category, h.name as herd_name
+        SELECT ae.*, a.identifier, a.name as animal_name,
+               COALESCE(h_animal.name, h_event.name) as herd_name,
+               COALESCE(h_animal.category, h_event.category) as category
         FROM animal_events ae
         LEFT JOIN animals a ON ae.animal_id = a.id
-        LEFT JOIN herds h ON a.herd_id = h.id
+        LEFT JOIN herds h_animal ON a.herd_id = h_animal.id
+        LEFT JOIN herds h_event ON ae.herd_id = h_event.id
       ''';
       
       List<String> conditions = [];
@@ -51,7 +54,7 @@ class ActivitiesHistoryController extends GetxController with GetSingleTickerPro
         } else if (selectedCategory.value == "Reprodução") {
           types = ["Inseminação Artificial", "Nascimento", "Aborto / Perda Gestacional", "Diagnóstico de Toque"];
         } else if (selectedCategory.value == "Saúde") {
-          types = ["Vacinação", "Medicamento"];
+          types = ["Vacinação", "Medicamento", "Casqueamento", "Tosquia"];
         }
         
         if (types.isNotEmpty) {

@@ -51,12 +51,12 @@ class ReportService {
     String csvData = const ListToCsvConverter().convert(rows);
     
     final directory = await getTemporaryDirectory();
-    final path = "${directory.path}/relatorio_agrogen_${DateTime.now().millisecondsSinceEpoch}.csv";
+    final path = "${directory.path}/relatorio_agrotech_${DateTime.now().millisecondsSinceEpoch}.csv";
     final file = File(path);
     
     await file.writeAsString(csvData);
     
-    await Share.shareXFiles([XFile(path)], text: 'Relatório de Rebanho - AgroGen Crateús');
+    await Share.shareXFiles([XFile(path)], text: 'Relatório de Rebanho - AgroTech Crateús');
   }
 
   /// Gera e compartilha um PDF técnico formatado
@@ -77,7 +77,7 @@ class ReportService {
             child: pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text("AgroGen Crateús - Relatorio Tecnico", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 18)),
+                pw.Text("AgroTech Crateús - Relatorio Tecnico", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 18)),
                 pw.Text(DateTime.now().toString().split('.')[0]),
               ],
             ),
@@ -103,18 +103,18 @@ class ReportService {
           ),
           pw.Padding(
             padding: const pw.EdgeInsets.only(top: 30),
-            child: pw.Text("Este relatorio foi gerado de forma offline pelo motor de IA do AgroGen Crateus.", style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+            child: pw.Text("Este relatorio foi gerado de forma offline pelo motor de IA do AgroTech Crateús.", style: pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
           )
         ],
       ),
     );
 
     final directory = await getTemporaryDirectory();
-    final path = "${directory.path}/laudo_tecnico_agrogen_${DateTime.now().millisecondsSinceEpoch}.pdf";
+    final path = "${directory.path}/laudo_tecnico_agrotech_${DateTime.now().millisecondsSinceEpoch}.pdf";
     final file = File(path);
     
     await file.writeAsBytes(await pdf.save());
     
-    await Share.shareXFiles([XFile(path)], text: 'Laudo Técnico Reprodutivo - AgroGen Crateús');
+    await Share.shareXFiles([XFile(path)], text: 'Laudo Técnico Reprodutivo - AgroTech Crateús');
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
@@ -17,330 +18,64 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
-    final db = await openDatabase(
+    return await openDatabase(
       path,
-      version: 12, // Versão 12: Suporte a tarefas no calendário
+      version: 19, // Versão 19: Adição de coluna de tipo em notificações
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
-
-    // Chama a semente de dados após inicializar
-    await _seedDatabase(db);
-
-    return db;
   }
 
   Future<void> _seedDatabase(Database db) async {
-    // Verifica se já existem rebanhos para não duplicar dados toda vez
-    final count = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM herds'));
-    if (count != null && count > 0) return;
-
-    print("Seeding database with mock data...");
-
-    // 1. Inserir Rebanhos
-    int herdBovino = await db.insert('herds', {
-      'name': 'Elite Nelore Gado',
-      'category': 'Bovino',
-      'management_type': 'Intensivo',
-      'location': 'Galpão Principal',
-      'animal_count': 6
-    });
-
-    int herdOvino = await db.insert('herds', {
-      'name': 'Santa Inês Premium',
-      'category': 'Ovino',
-      'management_type': 'Semiextensivo',
-      'location': 'Piquete 04',
-      'animal_count': 5
-    });
-
-    int herdCaprino = await db.insert('herds', {
-      'name': 'Leiteiras do Sertão',
-      'category': 'Caprino',
-      'management_type': 'Extensivo',
-      'location': 'Caatinga Norte',
-      'animal_count': 5
-    });
-
-    // 2. Inserir Animais (Bovinos)
-    await db.insert('animals', {
-      'herd_id': herdBovino,
-      'identifier': 'VACA-01',
-      'name': 'Mimosa',
-      'age_months': 48,
-      'weight': 450.5,
-      'ecc': 3.5,
-      'breed': 'Mestiço Sertanejo',
-      'breed_name': 'Nelore x Guzerá',
-      'sex': 'Fêmea',
-      'reproductive_status': 'Prenhe',
-      'parity': 'Multípara'
-    });
-
-    await db.insert('animals', {
-      'herd_id': herdBovino,
-      'identifier': 'VACA-02',
-      'name': 'Estrela',
-      'age_months': 36,
-      'weight': 420.0,
-      'ecc': 3.0,
-      'breed': 'Nativa Pura',
-      'breed_name': 'Nelore',
-      'sex': 'Fêmea',
-      'reproductive_status': 'Inseminada',
-      'parity': 'Primípara'
-    });
-
-    await db.insert('animals', {
-      'herd_id': herdBovino,
-      'identifier': 'VACA-03',
-      'name': 'Pretinha',
-      'age_months': 54,
-      'weight': 480.0,
-      'ecc': 3.8,
-      'breed': 'SRD (Comum)',
-      'breed_name': 'Mestiça',
-      'sex': 'Fêmea',
-      'reproductive_status': 'Em Lactação',
-      'parity': 'Multípara'
-    });
-
-    await db.insert('animals', {
-      'herd_id': herdBovino,
-      'identifier': 'NOVILHA-04',
-      'name': 'Esperança',
-      'age_months': 14,
-      'weight': 280.0,
-      'ecc': 3.2,
-      'breed': 'Mestiço Exótico',
-      'breed_name': 'Nelore x Angus',
-      'sex': 'Fêmea',
-      'reproductive_status': 'Vazia / Apta',
-      'parity': 'Nulípara'
-    });
-
-    await db.insert('animals', {
-      'herd_id': herdBovino,
-      'identifier': 'TOURO-99',
-      'name': 'Bruto',
-      'age_months': 60,
-      'weight': 850.0,
-      'ecc': 4.0,
-      'breed': 'Exótica Pura',
-      'breed_name': 'Nelore PO',
-      'sex': 'Macho',
-      'aptitude': 'Alta produção',
-      'semen_fertility': 0.85
-    });
-
-    await db.insert('animals', {
-      'herd_id': herdBovino,
-      'identifier': 'BEZERRO-05',
-      'name': 'Trovão',
-      'age_months': 4,
-      'weight': 120.0,
-      'ecc': 3.5,
-      'breed': 'Mestiço Sertanejo',
-      'breed_name': 'Nelore',
-      'sex': 'Macho',
-      'aptitude': 'Alta produção',
-      'semen_fertility': 0.0
-    });
-
-    // 3. Inserir Animais (Ovinos)
-    await db.insert('animals', {
-      'herd_id': herdOvino,
-      'identifier': 'OV-10',
-      'name': 'Branquinha',
-      'age_months': 24,
-      'weight': 45.0,
-      'ecc': 3.2,
-      'breed': 'Mestiço Exótico',
-      'breed_name': 'Santa Inês',
-      'sex': 'Fêmea',
-      'reproductive_status': 'Vazia / Apta',
-      'parity': 'Nulípara'
-    });
-
-    await db.insert('animals', {
-      'herd_id': herdOvino,
-      'identifier': 'OV-11',
-      'name': 'Bolinha',
-      'age_months': 36,
-      'weight': 52.0,
-      'ecc': 3.5,
-      'breed': 'Nativa Pura',
-      'breed_name': 'Morada Nova',
-      'sex': 'Fêmea',
-      'reproductive_status': 'Prenhe',
-      'parity': 'Multípara'
-    });
-
-    await db.insert('animals', {
-      'herd_id': herdOvino,
-      'identifier': 'OV-12',
-      'name': 'Mel',
-      'age_months': 12,
-      'weight': 38.0,
-      'ecc': 3.0,
-      'breed': 'SRD (Comum)',
-      'breed_name': 'Mestiça',
-      'sex': 'Fêmea',
-      'reproductive_status': 'Inseminada',
-      'parity': 'Nulípara'
-    });
-
-    await db.insert('animals', {
-      'herd_id': herdOvino,
-      'identifier': 'MACHO-05',
-      'name': 'Pé de Chumbo',
-      'age_months': 30,
-      'weight': 65.0,
-      'ecc': 3.8,
-      'breed': 'Nativa Pura',
-      'breed_name': 'Morada Nova',
-      'sex': 'Macho',
-      'aptitude': 'Rústico',
-      'semen_fertility': 0.90
-    });
-
-    await db.insert('animals', {
-      'herd_id': herdOvino,
-      'identifier': 'BORREGO-06',
-      'name': 'Pequeno',
-      'age_months': 2,
-      'weight': 12.0,
-      'ecc': 3.4,
-      'breed': 'Mestiço Exótico',
-      'breed_name': 'Santa Inês',
-      'sex': 'Macho',
-      'aptitude': 'Alta produção',
-      'semen_fertility': 0.0
-    });
-
-    // 4. Inserir Animais (Caprinos)
-    await db.insert('animals', {
-      'herd_id': herdCaprino,
-      'identifier': 'CAB-01',
-      'name': 'Leitosa',
-      'age_months': 40,
-      'weight': 38.5,
-      'ecc': 3.0,
-      'breed': 'Exótica Pura',
-      'breed_name': 'Saanen',
-      'sex': 'Fêmea',
-      'reproductive_status': 'Em Lactação',
-      'parity': 'Multípara'
-    });
-
-    await db.insert('animals', {
-      'herd_id': herdCaprino,
-      'identifier': 'CAB-02',
-      'name': 'Sertaneja',
-      'age_months': 20,
-      'weight': 32.0,
-      'ecc': 2.8,
-      'breed': 'Nativa Pura',
-      'breed_name': 'Moxotó',
-      'sex': 'Fêmea',
-      'reproductive_status': 'Vazia / Apta',
-      'parity': 'Nulípara'
-    });
-
-    await db.insert('animals', {
-      'herd_id': herdCaprino,
-      'identifier': 'CAB-03',
-      'name': 'Flor',
-      'age_months': 28,
-      'weight': 35.0,
-      'ecc': 3.1,
-      'breed': 'Mestiço Sertanejo',
-      'breed_name': 'Anglo Nubiana x Local',
-      'sex': 'Fêmea',
-      'reproductive_status': 'Inseminada',
-      'parity': 'Primípara'
-    });
-
-    await db.insert('animals', {
-      'herd_id': herdCaprino,
-      'identifier': 'BODE-90',
-      'name': 'Barba',
-      'age_months': 45,
-      'weight': 70.0,
-      'ecc': 3.9,
-      'breed': 'Nativa Pura',
-      'breed_name': 'Repartida',
-      'sex': 'Macho',
-      'aptitude': 'Rústico',
-      'semen_fertility': 0.88
-    });
-
-    await db.insert('animals', {
-      'herd_id': herdCaprino,
-      'identifier': 'CABRITO-04',
-      'name': 'Saltitante',
-      'age_months': 3,
-      'weight': 10.5,
-      'ecc': 3.3,
-      'breed': 'Exótica Pura',
-      'breed_name': 'Saanen',
-      'sex': 'Macho',
-      'aptitude': 'Alta produção',
-      'semen_fertility': 0.0
-    });
-
-    print("Seed complete!");
+    // Sementeira desativada a pedido do usuário para iniciar com banco limpo
+    return;
   }
 
   Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 4) {
+    if (oldVersion < 12) {
+      await db.execute('DROP TABLE IF EXISTS animal_events');
       await db.execute('DROP TABLE IF EXISTS animals');
       await db.execute('DROP TABLE IF EXISTS herds');
       await db.execute('DROP TABLE IF EXISTS users'); 
       await _createDB(db, newVersion);
     }
-    if (oldVersion < 5) {
-       await db.execute('''
-        CREATE TABLE IF NOT EXISTS animal_events (
+    if (oldVersion < 13) {
+      try { await db.execute('ALTER TABLE animal_events ADD COLUMN herd_id INTEGER'); } catch(e){}
+    }
+    if (oldVersion < 16) {
+      await db.execute('DROP TABLE IF EXISTS animal_events');
+      await db.execute('DROP TABLE IF EXISTS animals');
+      await db.execute('DROP TABLE IF EXISTS herds');
+      await db.execute('DROP TABLE IF EXISTS users'); 
+      await _createDB(db, newVersion);
+    }
+    if (oldVersion < 17) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS deleted_records (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          animal_id INTEGER NOT NULL,
-          type TEXT NOT NULL,
-          date TEXT NOT NULL,
-          description TEXT,
-          FOREIGN KEY (animal_id) REFERENCES animals (id) ON DELETE CASCADE
+          table_name TEXT NOT NULL,
+          remote_id TEXT NOT NULL
         )
       ''');
     }
-    if (oldVersion < 6) {
-      try { await db.execute('ALTER TABLE herds ADD COLUMN management_type TEXT DEFAULT "Extensivo"'); } catch(e){}
-      try { await db.execute('ALTER TABLE animals ADD COLUMN name TEXT'); } catch(e){}
-      try { await db.execute('ALTER TABLE animals ADD COLUMN lineage TEXT'); } catch(e){}
-      try { await db.execute('ALTER TABLE animals ADD COLUMN id_pai TEXT'); } catch(e){}
-      try { await db.execute('ALTER TABLE animals ADD COLUMN id_mae TEXT'); } catch(e){}
-      try { await db.execute('ALTER TABLE animals ADD COLUMN aptitude TEXT'); } catch(e){}
-      try { await db.execute('ALTER TABLE animals ADD COLUMN semen_fertility REAL'); } catch(e){}
+    if (oldVersion < 18) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS app_notifications (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          event_id INTEGER,
+          title TEXT,
+          message TEXT,
+          date TEXT,
+          is_read INTEGER DEFAULT 0
+        )
+      ''');
     }
-    if (oldVersion < 7) {
-      try { await db.execute('ALTER TABLE animals ADD COLUMN breed_name TEXT'); } catch(e){}
-    }
-    if (oldVersion < 8) {
-      try { await db.execute('ALTER TABLE herds ADD COLUMN location TEXT'); } catch(e){}
-    }
-    if (oldVersion < 9) {
-      try { await db.execute('ALTER TABLE animals ADD COLUMN pdf_path TEXT'); } catch(e){}
-    }
-    if (oldVersion < 10) {
-      try { await db.execute('ALTER TABLE animal_events ADD COLUMN value_1 REAL'); } catch(e){}
-      try { await db.execute('ALTER TABLE animal_events ADD COLUMN value_2 REAL'); } catch(e){}
-    }
-    if (oldVersion < 11) {
-      try { await db.execute('ALTER TABLE animal_events ADD COLUMN text_value_1 TEXT'); } catch(e){}
-      try { await db.execute('ALTER TABLE animal_events ADD COLUMN text_value_2 TEXT'); } catch(e){}
-    }
-    if (oldVersion < 12) {
-      try { await db.execute('ALTER TABLE animal_events ADD COLUMN is_task INTEGER DEFAULT 0'); } catch(e){}
-      try { await db.execute('ALTER TABLE animal_events ADD COLUMN is_all_day INTEGER DEFAULT 0'); } catch(e){}
-      try { await db.execute('ALTER TABLE animal_events ADD COLUMN color_hex TEXT'); } catch(e){}
+    if (oldVersion < 19) {
+      try {
+        await db.execute('ALTER TABLE app_notifications ADD COLUMN text_value_1 TEXT');
+      } catch (e) {
+        print("Erro ao adicionar coluna text_value_1 em app_notifications: $e");
+      }
     }
   }
 
@@ -360,7 +95,8 @@ class DatabaseHelper {
         category TEXT NOT NULL,
         management_type TEXT DEFAULT 'Extensivo',
         location TEXT,
-        animal_count INTEGER DEFAULT 0
+        animal_count INTEGER DEFAULT 0,
+        synced INTEGER DEFAULT 0
       )
     ''');
 
@@ -386,6 +122,12 @@ class DatabaseHelper {
         dpp_status TEXT,
         photo_path TEXT,
         pdf_path TEXT,
+        birth_date TEXT,
+        death_date TEXT,
+        vital_status TEXT DEFAULT 'Ativo',
+        created_at TEXT,
+        initial_age_months INTEGER,
+        synced INTEGER DEFAULT 0,
         FOREIGN KEY (herd_id) REFERENCES herds (id) ON DELETE CASCADE
       )
     ''');
@@ -394,6 +136,7 @@ class DatabaseHelper {
       CREATE TABLE IF NOT EXISTS animal_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         animal_id INTEGER,
+        herd_id INTEGER,
         type TEXT NOT NULL,
         date TEXT NOT NULL,
         description TEXT,
@@ -404,114 +147,122 @@ class DatabaseHelper {
         is_task INTEGER DEFAULT 0,
         is_all_day INTEGER DEFAULT 0,
         color_hex TEXT,
-        FOREIGN KEY (animal_id) REFERENCES animals (id) ON DELETE CASCADE
+        synced INTEGER DEFAULT 0,
+        FOREIGN KEY (animal_id) REFERENCES animals (id) ON DELETE CASCADE,
+        FOREIGN KEY (herd_id) REFERENCES herds (id) ON DELETE CASCADE
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS deleted_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        table_name TEXT NOT NULL,
+        remote_id TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS app_notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        event_id INTEGER,
+        title TEXT,
+        message TEXT,
+        date TEXT,
+        is_read INTEGER DEFAULT 0,
+        text_value_1 TEXT
+      )
+    ''');
+
+    await _seedDatabase(db);
   }
 
+  // --- MÉTODOS DE ACESSO ---
+
   Future<int> insertHerd(String name, String category, {String management = 'Extensivo', String? location}) async {
-    final db = await instance.database;
-    return await db.insert('herds', {
+    final db = await database;
+    int id = await db.insert('herds', {
       'name': name, 
       'category': category,
       'management_type': management,
-      'location': location
+      'location': location,
+      'synced': 0
     });
+    return id;
   }
 
   Future<List<Map<String, dynamic>>> getHerdsByCategory(String category) async {
-    try {
-      final db = await instance.database;
-      final List<Map<String, dynamic>> result = await db.rawQuery('''
-        SELECT h.*, 
-          (SELECT COUNT(*) FROM animals a WHERE a.herd_id = h.id) as total_animals,
-          (SELECT COUNT(*) FROM animals a WHERE a.herd_id = h.id AND a.sex = 'Fêmea') as total_females,
-          (SELECT COUNT(*) FROM animals a WHERE a.herd_id = h.id AND a.sex = 'Fêmea' AND a.reproductive_status = 'Prenhe') as pregnant_females,
-          (SELECT AVG(a.ecc) FROM animals a WHERE a.herd_id = h.id) as avg_ecc
-        FROM herds h
-        WHERE h.category = ?
-      ''', [category]);
-      return result;
-    } catch (e) {
-      print("Database Error: $e");
-      return [];
-    }
+    final db = await database;
+    return await db.rawQuery('''
+      SELECT h.*, 
+        (SELECT COUNT(*) FROM animals a WHERE a.herd_id = h.id) as total_animals,
+        (SELECT COUNT(*) FROM animals a WHERE a.herd_id = h.id AND a.sex = 'Fêmea') as total_females,
+        (SELECT COUNT(*) FROM animals a WHERE a.herd_id = h.id AND a.sex = 'Fêmea' AND a.reproductive_status = 'Prenhe') as pregnant_females,
+        (SELECT AVG(a.ecc) FROM animals a WHERE a.herd_id = h.id) as avg_ecc
+      FROM herds h
+      WHERE h.category = ?
+    ''', [category]);
   }
 
   Future<bool> herdNameExists(String name) async {
-    try {
-      final db = await instance.database;
-      final result = await db.query('herds', where: 'name = ?', whereArgs: [name]);
-      return result.isNotEmpty;
-    } catch (e) {
-      return false;
-    }
+    final db = await database;
+    final result = await db.query('herds', where: 'name = ?', whereArgs: [name]);
+    return result.isNotEmpty;
   }
 
   Future<List<Map<String, dynamic>>> getPotentialParents(String sex, String category, {int? excludeId}) async {
-    try {
-      final db = await instance.database;
-      String query = '''
-        SELECT a.identifier, a.id, h.category 
-        FROM animals a 
-        INNER JOIN herds h ON a.herd_id = h.id 
-        WHERE a.sex = ? AND h.category = ?
-      ''';
-      List<dynamic> args = [sex, category];
-      
-      if (excludeId != null) {
-        query += ' AND a.id != ?';
-        args.add(excludeId);
-      }
-      
-      return await db.rawQuery(query, args);
-    } catch (e) {
-      return [];
+    final db = await database;
+    String query = '''
+      SELECT a.identifier, a.id, h.category 
+      FROM animals a 
+      INNER JOIN herds h ON a.herd_id = h.id 
+      WHERE a.sex = ? AND h.category = ? AND a.vital_status = 'Ativo'
+    ''';
+    List<dynamic> args = [sex, category];
+    if (excludeId != null) {
+      query += ' AND a.id != ?';
+      args.add(excludeId);
     }
+    return await db.rawQuery(query, args);
   }
 
   Future<List<String>> getUniqueLineages() async {
-    try {
-      final db = await instance.database;
-      final List<Map<String, dynamic>> result = await db.rawQuery(
-        'SELECT DISTINCT lineage FROM animals WHERE lineage IS NOT NULL AND lineage != ""'
-      );
-      return result.map((row) => row['lineage'] as String).toList();
-    } catch (e) {
-      return [];
-    }
+    final db = await database;
+    final List<Map<String, dynamic>> result = await db.rawQuery(
+      'SELECT DISTINCT lineage FROM animals WHERE lineage IS NOT NULL AND lineage != ""'
+    );
+    return result.map((row) => row['lineage'] as String).toList();
   }
 
   Future<int> insertAnimal(Map<String, dynamic> animalData) async {
-    try {
-      final db = await instance.database;
-      int id = await db.insert('animals', animalData);
-
-      await db.execute('''
-        UPDATE herds SET animal_count = (
-          SELECT COUNT(*) FROM animals WHERE herd_id = ?
-        ) WHERE id = ?
-      ''', [animalData['herd_id'], animalData['herd_id']]);
-
-      return id;
-    } catch (e) {
-      print("Error inserting animal: $e");
-      return -1;
+    final db = await database;
+    
+    // Garante que todo animal tenha uma data de criação para controle de idade
+    final dataWithCreation = Map<String, dynamic>.from(animalData);
+    if (!dataWithCreation.containsKey('created_at') || dataWithCreation['created_at'] == null) {
+      dataWithCreation['created_at'] = DateTime.now().toIso8601String();
     }
+    dataWithCreation['synced'] = 0;
+
+    int id = await db.insert('animals', dataWithCreation);
+    await db.execute('''
+      UPDATE herds SET animal_count = (SELECT COUNT(*) FROM animals WHERE herd_id = ?), synced = 0 WHERE id = ?
+    ''', [animalData['herd_id'], animalData['herd_id']]);
+    return id;
   }
 
   Future<bool> animalIdentifierExists(int herdId, String identifier) async {
-    final db = await instance.database;
+    final db = await database;
     final result = await db.query('animals',
         where: 'herd_id = ? AND identifier = ?',
         whereArgs: [herdId, identifier]);
     return result.isNotEmpty;
   }
 
-  Future<int> insertEvent(int animalId, String type, String description, {double? v1, double? v2, String? t1, String? t2, DateTime? manualDate}) async {
-    final db = await instance.database;
+  Future<int> insertEvent(int? animalId, String type, String description, {double? v1, double? v2, String? t1, String? t2, DateTime? manualDate, int? herdId, int isTask = 0, String? color_hex}) async {
+    final db = await database;
     return await db.insert('animal_events', {
       'animal_id': animalId,
+      'herd_id': herdId,
       'type': type,
       'date': (manualDate ?? DateTime.now()).toIso8601String(),
       'description': description,
@@ -519,11 +270,14 @@ class DatabaseHelper {
       'value_2': v2,
       'text_value_1': t1,
       'text_value_2': t2,
+      'is_task': isTask,
+      'color_hex': color_hex,
+      'synced': 0
     });
   }
 
   Future<List<Map<String, dynamic>>> getEventsByAnimal(int animalId) async {
-    final db = await instance.database;
+    final db = await database;
     return await db.query('animal_events',
         where: 'animal_id = ?',
         whereArgs: [animalId],
@@ -531,19 +285,220 @@ class DatabaseHelper {
   }
 
   Future<int> registerUser(String email, String password) async {
-    final db = await instance.database;
+    final db = await database;
     return await db.insert('users', {'email': email, 'password': password});
   }
 
   Future<Map<String, dynamic>?> loginUser(String email, String password) async {
-    final db = await instance.database;
+    final db = await database;
     final result = await db.query('users', where: 'email = ? AND password = ?', whereArgs: [email, password]);
     return result.isNotEmpty ? result.first : null;
   }
 
   Future<Map<String, dynamic>?> getUserByEmail(String email) async {
-    final db = await instance.database;
+    final db = await database;
     final result = await db.query('users', where: 'email = ?', whereArgs: [email]);
     return result.isNotEmpty ? result.first : null;
+  }
+
+  Future<int> updateAnimal(int id, Map<String, dynamic> data) async {
+    final db = await database;
+    final updatedData = Map<String, dynamic>.from(data);
+    updatedData['synced'] = 0; // Força nova sincronização
+    return await db.update('animals', updatedData, where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> deleteAnimal(int id) async {
+    final db = await database;
+    await _trackDeletion('animals', id);
+    await db.delete('animals', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> deleteHerd(int id) async {
+    final db = await database;
+    final animals = await db.query('animals', where: 'herd_id = ?', whereArgs: [id]);
+    for (var a in animals) {
+      await _trackDeletion('animals', a['id']);
+    }
+    await _trackDeletion('herds', id);
+    await db.delete('herds', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> _trackDeletion(String table, dynamic id) async {
+    final db = await database;
+    await db.insert('deleted_records', {
+      'table_name': table,
+      'remote_id': id.toString()
+    });
+  }
+
+  // --- LÓGICA DE EXCLUSÃO TÉCNICA (CASCATA BIOLÓGICA) ---
+
+  Future<void> deleteActivityChain(int eventId) async {
+    final db = await database;
+
+    // 1. Busca o evento que será excluído para entender o contexto
+    final eventResult = await db.query('animal_events', where: 'id = ?', whereArgs: [eventId]);
+    if (eventResult.isEmpty) return;
+
+    final event = eventResult.first;
+    final String type = event['type'].toString();
+    final int? animalId = event['animal_id'] as int?;
+    final String eventDate = event['date'].toString();
+
+    // Lista de tipos que compõem a "árvore reprodutiva"
+    const reproTypes = [
+      "Inseminação Artificial",
+      "Diagnóstico de Toque",
+      "Nascimento",
+      "Aborto / Perda Gestacional"
+    ];
+
+    const reversibleTypes = [
+      ...reproTypes,
+      "Pesagem e Escore",
+      "Óbito",
+      "Abate",
+      "Venda de Animal"
+    ];
+
+    if (animalId != null && reversibleTypes.contains(type)) {
+      // 2. Se for um evento da CADEIA REPRODUTIVA, exclui todos os eventos posteriores deste animal
+      if (reproTypes.contains(type)) {
+        // Antes de deletar, precisamos trackear para a nuvem
+        final toDelete = await db.query('animal_events', 
+          where: 'animal_id = ? AND type IN (?, ?, ?, ?) AND date > ?',
+          whereArgs: [animalId, ...reproTypes, eventDate]);
+        
+        for (var row in toDelete) {
+          await _trackDeletion('events', row['id']);
+        }
+
+        await db.delete(
+          'animal_events',
+          where: 'animal_id = ? AND type IN (?, ?, ?, ?) AND date > ?',
+          whereArgs: [animalId, ...reproTypes, eventDate],
+        );
+      }
+      
+      // ... resto do código ...
+    }
+
+    // 4. Por fim, exclui o próprio evento
+    await _trackDeletion('events', eventId);
+    await db.delete('animal_events', where: 'id = ?', whereArgs: [eventId]);
+  }
+
+  Future<void> appendMassiveMockData() async {
+    final db = await database;
+    String now = DateTime.now().toIso8601String();
+
+    // 1. Criar rebanhos robustos
+    int hB1 = await insertHerd('Fazenda Sol Nascente - Gado', 'Bovino', management: 'Intensivo', location: 'Pasto de Engorda');
+    int hB2 = await insertHerd('Lote Elite Nelore', 'Bovino', management: 'Semiextensivo', location: 'Piquete 04');
+    int hO = await insertHerd('Rebanho Crateús - Ovinos', 'Ovino', management: 'Extensivo', location: 'Abrigo Leste');
+    int hC = await insertHerd('Caprinos de Leite', 'Caprino', management: 'Intensivo', location: 'Galpão 01');
+
+    // 2. Gerar Animais Diversos
+    
+    // BOVINOS (30 animais)
+    for (int i = 1; i <= 30; i++) {
+      await insertAnimal({
+        'herd_id': i <= 15 ? hB1 : hB2,
+        'identifier': 'BOV-${100 + i}',
+        'name': i % 5 == 0 ? 'Matriz Soberana $i' : 'Bezerra $i',
+        'age_months': 12 + (i * 2),
+        'weight': 380.0 + (i * 5),
+        'ecc': (i % 3) + 2.5,
+        'breed': i < 15 ? 'Nativa Pura' : 'Mestiço Sertanejo',
+        'breed_name': 'Nelore',
+        'sex': i == 15 || i == 30 ? 'Macho' : 'Fêmea',
+        'lineage': 'Linhagem Maranhão',
+        'id_pai': 'Touro Thor',
+        'id_mae': 'Matriz 0${i % 5}',
+        'aptitude': 'Alta produção',
+        'reproductive_status': i % 3 == 0 ? 'Prenhe' : 'Vazia / Apta',
+        'parity': i < 10 ? 'Nulípara' : 'Multípara',
+        'vital_status': 'Ativo',
+        'created_at': now
+      });
+    }
+
+    // OVINOS (20 animais)
+    for (int i = 1; i <= 20; i++) {
+      await insertAnimal({
+        'herd_id': hO,
+        'identifier': 'OVI-${500 + i}',
+        'name': 'Ovelha Dorper $i',
+        'age_months': 8 + i,
+        'weight': 35.0 + i,
+        'ecc': 3.5,
+        'breed': 'Mestiço Exótico',
+        'breed_name': 'Dorper',
+        'sex': i == 1 ? 'Macho' : 'Fêmea',
+        'aptitude': 'Rústica',
+        'reproductive_status': i % 4 == 0 ? 'Prenhe' : 'Vazia / Apta',
+        'parity': 'Primípara',
+        'vital_status': 'Ativo',
+        'created_at': now
+      });
+    }
+
+    // CAPRINOS (20 animais)
+    for (int i = 1; i <= 20; i++) {
+      await insertAnimal({
+        'herd_id': hC,
+        'identifier': 'CAP-${800 + i}',
+        'name': 'Cabra Saanen $i',
+        'age_months': 15 + i,
+        'weight': 30.0 + i,
+        'ecc': 3.2,
+        'breed': 'Exótica Pura',
+        'breed_name': 'Saanen',
+        'sex': i == 5 ? 'Macho' : 'Fêmea',
+        'aptitude': 'Alta produção',
+        'reproductive_status': 'Em Lactação',
+        'parity': 'Multípara',
+        'vital_status': 'Ativo',
+        'created_at': now
+      });
+    }
+
+    // 3. Gerar Atividades e Gastos
+    final List<Map<String, dynamic>> animals = await db.query('animals');
+    
+    for (int j = 0; j < 50; j++) {
+      final animal = animals[j % animals.length];
+      String type = "Vacinação";
+      double value = 150.0 + (j * 10);
+      
+      if (j % 5 == 0) type = "Inseminação Artificial";
+      if (j % 8 == 0) type = "Medicamento";
+      if (j % 10 == 0) type = "Suplementação";
+
+      await db.insert('animal_events', {
+        'animal_id': animal['id'],
+        'herd_id': animal['herd_id'],
+        'type': type,
+        'date': DateTime.now().subtract(Duration(days: j)).toIso8601String(),
+        'description': 'Manejo de rotina - Hackathon Demo',
+        'value_1': value, // Valor gasto
+        'text_value_1': 'Insumo Premium',
+        'is_task': 0,
+        'synced': 0
+      });
+    }
+
+    // 4. Gerar Próximas Tarefas (Calendário)
+    for (int k = 1; k <= 15; k++) {
+       await db.insert('animal_events', {
+        'type': k % 2 == 0 ? 'Diagnóstico de Toque' : 'Vacinação Febre Aftosa',
+        'date': DateTime.now().add(Duration(days: k)).toIso8601String(),
+        'description': 'Tarefa agendada pela IA para monitoramento preventivo.',
+        'is_task': 1,
+        'color_hex': k % 2 == 0 ? 'FF2196F3' : 'FFF44336',
+        'synced': 0
+      });
+    }
   }
 }

@@ -10,11 +10,27 @@ class CadastroRebanhoView extends StatelessWidget {
     return Scaffold(
       backgroundColor: context.theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.green[800],
-        title: const Text('Novo Rebanho', style: TextStyle(color: Colors.white)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Get.back(),
+        backgroundColor: context.theme.scaffoldBackgroundColor,
+        elevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CircleAvatar(
+            backgroundColor: Get.isDarkMode ? Colors.white10 : Colors.black.withOpacity(0.05),
+            child: IconButton(
+              icon: Icon(Icons.chevron_left, color: Get.isDarkMode ? Colors.white : Colors.black87),
+              onPressed: () => Get.back(),
+            ),
+          ),
+        ),
+        title: Text(
+          'Novo Rebanho', 
+          style: TextStyle(
+            color: Get.isDarkMode ? Colors.white : Colors.black87, 
+            fontWeight: FontWeight.bold, 
+            fontSize: 18
+          )
         ),
       ),
       body: Center(
@@ -25,22 +41,24 @@ class CadastroRebanhoView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text("Informações do Rebanho", 
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                _buildSectionTitle("INFORMAÇÕES BÁSICAS", Icons.info_outline),
                 const SizedBox(height: 16),
                 _buildTextField(
                   controller.nomeRebanhoController, 
                   "Nome do Rebanho (Ex: Lote Elite)",
-                  errorText: controller.nomeRebanhoError
+                  errorText: controller.nomeRebanhoError,
+                  icon: Icons.drive_file_rename_outline,
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(
                   controller.localizacaoController, 
                   "Localização / Galpão (Opcional)",
+                  icon: Icons.location_on_outlined,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
                 
-                // CATEGORIA (RADIO)
+                _buildSectionTitle("CATEGORIA E MANEJO", Icons.science_outlined),
+                const SizedBox(height: 16),
                 _buildLabel("Categoria do Rebanho"),
                 const SizedBox(height: 12),
                 Obx(() => Row(
@@ -112,29 +130,10 @@ class CadastroRebanhoView extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField(TextEditingController ctrl, String hint, {TextInputType? keyboardType, Rxn<String>? errorText}) {
+  Widget _buildTextField(TextEditingController ctrl, String hint, {TextInputType? keyboardType, Rxn<String>? errorText, IconData? icon}) {
     final context = Get.context!;
-    final decoration = InputDecoration(
-      hintText: hint,
-      filled: true,
-      fillColor: context.theme.brightness == Brightness.dark ? Colors.white10 : Colors.grey[50],
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey[200]!),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.green[800]!),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.red),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.red, width: 2),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    final decoration = _inputDecoration(hintText: hint, prefixIcon: icon).copyWith(
+      errorText: errorText?.value,
     );
 
     if (errorText == null) {
@@ -146,6 +145,42 @@ class CadastroRebanhoView extends StatelessWidget {
       keyboardType: keyboardType,
       decoration: decoration.copyWith(errorText: errorText.value),
     ));
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.green[800]),
+        const SizedBox(width: 8),
+        Text(title, style: TextStyle(color: Colors.green[800], fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+      ],
+    );
+  }
+
+  InputDecoration _inputDecoration({String? hintText, IconData? prefixIcon}) {
+    return InputDecoration(
+      hintText: hintText,
+      prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: Colors.green[800]) : null,
+      filled: true,
+      fillColor: Get.isDarkMode ? Colors.white10 : Colors.white,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15), 
+        borderSide: BorderSide(color: Colors.grey[300]!)
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15), 
+        borderSide: BorderSide(color: Colors.green[800]!, width: 2)
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15), 
+        borderSide: const BorderSide(color: Colors.redAccent)
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15), 
+        borderSide: const BorderSide(color: Colors.redAccent, width: 2)
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    );
   }
 
   Widget _buildLabel(String text) {
@@ -235,4 +270,3 @@ class CadastroRebanhoView extends StatelessWidget {
     );
   }
 }
-

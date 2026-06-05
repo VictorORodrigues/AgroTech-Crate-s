@@ -1,9 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'dart:io';
+import '../../../../database/database_helper.dart';
+import '../../../../utils/currency_input_formatter.dart';
 import 'add_activity_controller.dart';
 
 class AddActivityView extends StatelessWidget {
@@ -14,381 +15,329 @@ class AddActivityView extends StatelessWidget {
     return Scaffold(
       backgroundColor: context.theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Novo Registro de Manejo", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.green[800],
+        backgroundColor: context.theme.scaffoldBackgroundColor,
+        elevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CircleAvatar(
+            backgroundColor: Get.isDarkMode ? Colors.white10 : Colors.black.withOpacity(0.05),
+            child: IconButton(
+              icon: Icon(Icons.chevron_left, color: Get.isDarkMode ? Colors.white : Colors.black87),
+              onPressed: () => Get.back(),
+            ),
+          ),
+        ),
+        title: Text(
+          "Novo Manejo", 
+          style: TextStyle(
+            color: Get.isDarkMode ? Colors.white : Colors.black87, 
+            fontWeight: FontWeight.bold, 
+            fontSize: 18
+          )
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildLabel("Tipo de Atividade"),
-            const SizedBox(height: 12),
-            Obx(() => DropdownButtonFormField<String>(
-              value: controller.selectedType.value.isEmpty ? null : controller.selectedType.value,
-              hint: const Text("Selecione o tipo de manejo"),
-              isExpanded: true,
-              items: controller.types.map((t) => DropdownMenuItem(
-                value: t,
-                child: Text(t, style: const TextStyle(fontSize: 14)),
-              )).toList(),
-              onChanged: (v) => controller.selectedType.value = v ?? "",
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: context.theme.cardColor,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Obx(() {
+          final type = controller.selectedType.value;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionTitle("CONFIGURAÇÃO BÁSICA", Icons.settings_outlined),
+              const SizedBox(height: 16),
+              
+              _buildLabel("Tipo de Atividade"),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: type.isEmpty ? null : type,
+                hint: const Text("Selecione o manejo"),
+                isExpanded: true,
+                items: controller.types.map((t) => DropdownMenuItem(
+                  value: t,
+                  child: Text(t, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                )).toList(),
+                onChanged: (v) => controller.selectedType.value = v ?? "",
+                decoration: _inputDecoration(),
+                dropdownColor: Colors.white,
+                borderRadius: BorderRadius.circular(16),
               ),
-              dropdownColor: context.theme.cardColor,
-            )),
-            
-            const SizedBox(height: 24),
-            _buildLabel("Selecionar Animal"),
-            const SizedBox(height: 12),
-            _buildAnimalSelector(context),
 
-            const SizedBox(height: 24),
-            _buildLabel("Data e Hora do Registro"),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: controller.manualDate.value,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                      );
-                      if (picked != null) controller.manualDate.value = picked;
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[200]!),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Obx(() => Text(
-                            DateFormat('dd/MM/yyyy').format(controller.manualDate.value),
-                            style: const TextStyle(fontSize: 14),
-                          )),
-                          const Icon(Icons.calendar_month, size: 18, color: Colors.grey),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: controller.manualTime.value,
-                      );
-                      if (picked != null) controller.manualTime.value = picked;
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey[200]!),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Obx(() => Text(
-                            controller.manualTime.value.format(context),
-                            style: const TextStyle(fontSize: 14),
-                          )),
-                          const Icon(Icons.access_time, size: 18, color: Colors.grey),
-                        ],
-                      ),
-                    ),
-                  ),
+              if (type == "Outro") ...[
+                const SizedBox(height: 20),
+                _buildLabel("Título da Atividade (Obrigatório)"),
+                const SizedBox(height: 8),
+                _buildTextField(controller.value1Ctrl, "Ex: Conserto de cerca, Limpeza...", Icons.title),
+              ],
+
+              if (type == "Compra de Animal") ...[
+                const SizedBox(height: 20),
+                _buildLabel("Deseja cadastrar o animal agora?"),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: _buildRadioTile(
+                      label: "Sim", 
+                      value: "SIM", 
+                      groupValue: controller.registerNewOnPurchase.value ? "SIM" : "NAO", 
+                      onChanged: (v) {
+                        controller.registerNewOnPurchase.value = true;
+                        _showHerdSelectionForPurchase(context);
+                      }
+                    )),
+                    const SizedBox(width: 12),
+                    Expanded(child: _buildRadioTile(
+                      label: "Não", 
+                      value: "NAO", 
+                      groupValue: controller.registerNewOnPurchase.value ? "SIM" : "NAO", 
+                      onChanged: (v) => controller.registerNewOnPurchase.value = false
+                    )),
+                  ],
                 ),
               ],
-            ),
-            
-            const SizedBox(height: 24),
-            Obx(() => _buildDynamicInputs(context)),
-            
-            const SizedBox(height: 40),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: Obx(() => ElevatedButton(
-                onPressed: controller.isLoading.value ? null : controller.saveActivity,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                ),
-                child: controller.isLoading.value 
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("Salvar Registro", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              )),
-            ),
-          ],
-        ),
+
+              const SizedBox(height: 20),
+              _buildLabel("Animal Envolvido ${type == "Outro" ? "(Opcional)" : ""}"),
+              const SizedBox(height: 8),
+              _buildAnimalSelector(context),
+
+              if (type == "Outro") ...[
+                const SizedBox(height: 20),
+                _buildLabel("Rebanho Relacionado (Opcional)"),
+                const SizedBox(height: 8),
+                _buildHerdSelector(context),
+              ],
+
+              const SizedBox(height: 20),
+              _buildLabel("Data e Hora do Manejo"),
+              const SizedBox(height: 8),
+              _buildDateTimePickers(context),
+
+              const Divider(height: 48),
+              if (type.isNotEmpty) ...[
+                _buildSectionTitle("DADOS TÉCNICOS ESPECÍFICOS", Icons.analytics_outlined),
+                const SizedBox(height: 20),
+                _buildDynamicInputs(context),
+              ],
+
+              const SizedBox(height: 24),
+              _buildLabel("Observações / Detalhes"),
+              const SizedBox(height: 8),
+              _buildTextField(controller.descriptionCtrl, "Relate aqui detalhes técnicos do manejo...", Icons.notes, maxLines: 3),
+
+              const SizedBox(height: 48),
+              _buildSaveButton(),
+              const SizedBox(height: 40),
+            ],
+          );
+        }),
       ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.green[800]),
+        const SizedBox(width: 8),
+        Text(title, style: TextStyle(color: Colors.green[800], fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+      ],
     );
   }
 
   Widget _buildLabel(String text) {
-    return Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold));
+    return Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black87));
   }
 
-  Widget _buildHerdSelector(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showHerdSearch(context),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: context.theme.cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Obx(() => Text(
-              controller.selectedHerd.value != null 
-                ? controller.selectedHerd.value!['name']
-                : "Tocar para buscar rebanho...",
-              style: TextStyle(color: controller.selectedHerd.value == null ? Colors.grey : Colors.black87),
-            )),
-            const Icon(Icons.search, color: Colors.grey),
-          ],
-        ),
+  InputDecoration _inputDecoration({IconData? prefixIcon, String? suffixText, String? hintText, Widget? suffixIcon}) {
+    return InputDecoration(
+      hintText: hintText,
+      prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: Colors.green[800], size: 20) : null,
+      suffixText: suffixText,
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: Get.isDarkMode ? Colors.white10 : Colors.white,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15), 
+        borderSide: BorderSide(color: Colors.grey[300]!)
       ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15), 
+        borderSide: BorderSide(color: Colors.green[800]!, width: 2)
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
   }
 
-  void _showHerdSearch(BuildContext context) {
-    var currentQuery = "".obs;
-
-    Get.bottomSheet(
-      Container(
-        height: Get.height * 0.7,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: context.theme.scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-        ),
-        child: Column(
-          children: [
-            const Text("Buscar Rebanho", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            TextField(
-              onChanged: (v) => currentQuery.value = v,
-              decoration: InputDecoration(
-                hintText: "Nome do rebanho...",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.grey[100],
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: Obx(() {
-                final results = controller.allHerds.where((h) => 
-                  h['name'].toString().toLowerCase().contains(currentQuery.value.toLowerCase())
-                ).toList();
-                
-                if (results.isEmpty) {
-                  return const Center(child: Text("Nenhum rebanho encontrado.", style: TextStyle(color: Colors.grey)));
-                }
-                return ListView.separated(
-                  itemCount: results.length,
-                  separatorBuilder: (context, index) => const Divider(),
-                  itemBuilder: (context, index) {
-                    final h = results[index];
-                    return ListTile(
-                      leading: const Icon(Icons.other_houses_outlined, color: Colors.green),
-                      title: Text(h['name']),
-                      subtitle: Text("${h['category']} | ${h['management_type']}"),
-                      onTap: () {
-                        controller.selectedHerd.value = h;
-                        Get.back();
-                      },
-                    );
-                  },
-                );
-              }),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAnimalSelector(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showAnimalSearch(context),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: context.theme.cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Obx(() => Text(
-              controller.selectedAnimal.value != null 
-                ? "${controller.selectedAnimal.value!['identifier']} (${controller.selectedAnimal.value!['herd_name']})"
-                : "Tocar para buscar animal...",
-              style: TextStyle(color: controller.selectedAnimal.value == null ? Colors.grey : Colors.black87),
-            )),
-            const Icon(Icons.search, color: Colors.grey),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAnimalSearch(BuildContext context) {
-    // Reset de filtros ao abrir busca
-    controller.searchCategoryFilter.value = "Todos";
-    controller.searchSexFilter.value = "Todos";
-    
-    var currentQuery = "".obs;
-
-    Get.bottomSheet(
-      Container(
-        height: Get.height * 0.85,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: context.theme.scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-        ),
-        child: Column(
-          children: [
-            const Text("Buscar Animal", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            TextField(
-              onChanged: (v) => currentQuery.value = v,
-              decoration: InputDecoration(
-                hintText: "ID ou Apelido...",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.grey[100],
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Filtros de Categoria e Sexo
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+  Widget _buildDateTimePickers(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: InkWell(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: controller.manualDate.value,
+                firstDate: DateTime(2020),
+                lastDate: DateTime(2030),
+              );
+              if (picked != null) controller.manualDate.value = picked;
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey[200]!, width: 1.5)),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Categoria
-                  ...["Todos", "Bovino", "Ovino", "Caprino"].map((cat) => Obx(() {
-                    bool isSelected = controller.searchCategoryFilter.value == cat;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        label: Text(cat, style: TextStyle(fontSize: 11, color: isSelected ? Colors.white : Colors.black87)),
-                        selected: isSelected,
-                        onSelected: (_) => controller.searchCategoryFilter.value = cat,
-                        selectedColor: Colors.green[800],
-                        checkmarkColor: Colors.white,
-                        shape: StadiumBorder(side: BorderSide(color: isSelected ? Colors.green[800]! : Colors.transparent)),
-                      ),
-                    );
-                  })),
-                  
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4),
-                    child: SizedBox(height: 20, child: VerticalDivider(width: 1, color: Colors.grey)),
-                  ),
-
-                  // Sexo
-                  ...["Todos", "Macho", "Fêmea"].map((sex) => Obx(() {
-                    bool isSelected = controller.searchSexFilter.value == sex;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        label: Text(sex, style: TextStyle(fontSize: 11, color: isSelected ? Colors.white : Colors.black87)),
-                        selected: isSelected,
-                        onSelected: (_) => controller.searchSexFilter.value = sex,
-                        selectedColor: Colors.blue[800],
-                        checkmarkColor: Colors.white,
-                        shape: StadiumBorder(side: BorderSide(color: isSelected ? Colors.blue[800]! : Colors.transparent)),
-                      ),
-                    );
-                  })),
+                  Obx(() => Text(DateFormat('dd/MM/yyyy').format(controller.manualDate.value), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500))),
+                  const Icon(Icons.calendar_month, size: 18, color: Colors.grey),
                 ],
               ),
             ),
-            
-            const SizedBox(height: 16),
-            Expanded(
-              child: Obx(() {
-                final results = controller.getFilteredAnimalsList(currentQuery.value);
-                
-                if (results.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.pets_outlined, size: 60, color: Colors.grey[300]),
-                          const SizedBox(height: 16),
-                          Text(
-                            controller.allAnimals.isEmpty 
-                              ? "Ops! parece que voce ainda não possui animais cadastrados na sua base de dados"
-                              : "Nenhum animal encontrado com esses filtros.",
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.grey, fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  itemCount: results.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final a = results[index];
-                    return _buildAnimalCard(context, a, () {
-                      controller.selectedAnimal.value = a;
-                      Get.back();
-                    });
-                  },
-                );
-              }),
-            ),
-          ],
+          ),
         ),
-      ),
-      isScrollControlled: true,
+        const SizedBox(width: 12),
+        Expanded(
+          child: InkWell(
+            onTap: () async {
+              final picked = await showTimePicker(context: context, initialTime: controller.manualTime.value);
+              if (picked != null) controller.manualTime.value = picked;
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey[200]!, width: 1.5)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Obx(() => Text(controller.manualTime.value.format(context), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500))),
+                  const Icon(Icons.access_time, size: 18, color: Colors.grey),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildDynamicInputs(BuildContext context) {
     final type = controller.selectedType.value;
-    if (type.isEmpty) return const SizedBox.shrink();
+    
+    if (type == "Vacinação") {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel("Nome da Vacina"),
+          const SizedBox(height: 8),
+          _buildTextField(controller.value1Ctrl, "Ex: Febre Aftosa, Raiva...", Icons.vaccines_outlined),
+          const SizedBox(height: 20),
+          _buildLabel("Valor Gasto (R\$)"),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller.value2Ctrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [controller.moneyMask],
+            decoration: _inputDecoration(prefixIcon: Icons.payments_outlined),
+          ),
+          const SizedBox(height: 20),
+          _buildLabel("Agendar 2ª Dose (Opcional)"),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now().add(const Duration(days: 21)),
+                firstDate: DateTime.now(),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+              );
+              controller.date2Ctrl.value = picked;
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey[200]!, width: 1.5)),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Obx(() => Text(
+                    controller.date2Ctrl.value != null ? DateFormat('dd/MM/yyyy').format(controller.date2Ctrl.value!) : "Toque para selecionar",
+                    style: TextStyle(color: controller.date2Ctrl.value == null ? Colors.grey : Colors.black87),
+                  )),
+                  if (controller.date2Ctrl.value != null)
+                    GestureDetector(onTap: () => controller.date2Ctrl.value = null, child: const Icon(Icons.close, size: 18, color: Colors.red))
+                  else
+                    const Icon(Icons.event_repeat, size: 18, color: Colors.grey),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (type == "Inseminação Artificial") ...[
-          _buildLabel("Tipo de Inseminação"),
-          const SizedBox(height: 12),
+    if (type == "Medicamento") {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel("Nome da Medicação"),
+          const SizedBox(height: 8),
+          _buildTextField(controller.value1Ctrl, "Ex: Ivomec, Terramicina...", Icons.medication_outlined),
+          const SizedBox(height: 20),
+          _buildLabel("Valor Gasto (R\$)"),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller.value2Ctrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [controller.moneyMask],
+            decoration: _inputDecoration(prefixIcon: Icons.payments_outlined),
+          ),
+        ],
+      );
+    }
+
+    if (type == "Pesagem e Escore") {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel("Peso Atual (kg)"),
+          const SizedBox(height: 8),
+          _buildTextField(
+            controller.value1Ctrl, 
+            "Ex: 450", 
+            Icons.scale_outlined, 
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [controller.weightMask],
+          ),
+          const SizedBox(height: 24),
+          _buildECCSlider(context),
+        ],
+      );
+    }
+
+    if (type == "Óbito") {
+      final causas = ["Acidente", "Doença", "Predador", "Intoxicação", "Desnutrição", "Desconhecida"];
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel("Causa da Morte"),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: controller.deathCause.value,
+            items: causas.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+            onChanged: (v) => controller.deathCause.value = v!,
+            decoration: _inputDecoration(prefixIcon: Icons.warning_amber_rounded),
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ],
+      );
+    }
+
+    if (type == "Inseminação Artificial") {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel("Método"),
+          const SizedBox(height: 8),
           Row(
             children: ["Inseminação Artificial", "Monta"].map((opt) => Expanded(
               child: Padding(
@@ -402,177 +351,344 @@ class AddActivityView extends StatelessWidget {
               ),
             )).toList(),
           ),
+          const SizedBox(height: 20),
           if (controller.inseminationType.value == "Monta") ...[
-            const SizedBox(height: 20),
             _buildLabel("Selecionar Reprodutor (Macho)"),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             _buildSireSelector(context),
           ] else ...[
-            const SizedBox(height: 20),
-            _buildLabel("Fertilidade do Sêmen"),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildTextField(
-                    controller.value1Ctrl, 
-                    "Ex: 0.85",
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d{0,1}')),
-                      TextInputFormatter.withFunction((oldValue, newValue) {
-                        final text = newValue.text.replaceAll(',', '.');
-                        return newValue.copyWith(text: text);
-                      }),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.keyboard_arrow_up, color: Colors.green),
-                      onPressed: controller.incrementFertility,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.keyboard_arrow_down, color: Colors.green),
-                      onPressed: controller.decrementFertility,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+            _buildLabel("Fertilidade do Sêmen (0.0 - 1.0)"),
+            const SizedBox(height: 8),
+            _buildFertilityInput(),
           ],
-        ],
-        if (type == "Vacinação") ...[
-          _buildLabel("Nome da Vacina"),
-          const SizedBox(height: 12),
-          _buildTextField(controller.value1Ctrl, "Ex: Febre Aftosa, Brucelose..."),
-        ],
-        if (type == "Medicamento") ...[
-          _buildLabel("Nome do Medicamento"),
-          const SizedBox(height: 12),
-          _buildTextField(controller.value1Ctrl, "Ex: Ivomec, Terramicina..."),
-        ],
-        if (type == "Produção de Leite") ...[
-          _buildLabel("Quantidade de Leite"),
-          const SizedBox(height: 12),
-          _buildTextField(
-            controller.value1Ctrl, 
-            "Ex: 12.5", 
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            suffixText: "Litros",
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d{0,2}')),
-              TextInputFormatter.withFunction((oldValue, newValue) {
-                final text = newValue.text.replaceAll(',', '.');
-                return newValue.copyWith(text: text);
-              }),
-            ],
-          ),
-        ],
-        if (type == "Pesagem e Escore") ...[
-          _buildLabel("Peso Atual"),
-          const SizedBox(height: 12),
-          _buildTextField(
-            controller.value1Ctrl, 
-            "Ex: 450", 
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            suffixText: "kg",
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*[.,]?\d{0,2}')),
-              TextInputFormatter.withFunction((oldValue, newValue) {
-                final text = newValue.text.replaceAll(',', '.');
-                return newValue.copyWith(text: text);
-              }),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildLabel("ECC Atual"),
-              Obx(() => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green[800],
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  controller.eccValue.value.toStringAsFixed(1),
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-              )),
-            ],
-          ),
+          const SizedBox(height: 20),
+          _buildLabel("Valor Gasto (R\$)"),
           const SizedBox(height: 8),
-          Obx(() => Column(
-            children: [
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  activeTrackColor: Colors.green[800],
-                  inactiveTrackColor: Colors.green[100],
-                  thumbColor: Colors.green[800],
-                  overlayColor: Colors.green[800]!.withOpacity(0.2),
-                  valueIndicatorColor: Colors.green[800],
-                  valueIndicatorTextStyle: const TextStyle(color: Colors.white),
-                ),
-                child: Slider(
-                  value: controller.eccValue.value,
-                  min: 1, max: 5, divisions: 8,
-                  label: controller.eccValue.value.toStringAsFixed(1),
-                  onChanged: (v) => controller.eccValue.value = v,
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("Muito Magra", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500)),
-                    Text("Ideal", style: TextStyle(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold)),
-                    Text("Muito Gorda", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500)),
-                  ],
-                ),
-              ),
+          TextField(
+            controller: controller.value2Ctrl,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              CurrencyInputFormatter(),
             ],
-          )),
+            decoration: _inputDecoration(prefixIcon: Icons.payments_outlined),
+          ),
         ],
-        if (type == "Diagnóstico de Toque") ...[
+      );
+    }
+
+    if (type == "Diagnóstico de Toque") {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           _buildLabel("Resultado do Exame"),
           const SizedBox(height: 12),
           Row(
-            children: ["Positivo", "Negativo"].map((r) => Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8.0),
-                child: _buildRadioTile(
-                  label: r,
-                  value: r,
-                  groupValue: controller.touchResult.value,
-                  onChanged: (v) => controller.touchResult.value = v!,
-                ),
-              ),
-            )).toList(),
+            children: [
+              Expanded(child: _buildRadioTile(label: "Positivo", value: "Positivo", groupValue: controller.touchResult.value, onChanged: (v) => controller.touchResult.value = v!, activeColor: Colors.green)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildRadioTile(label: "Negativo", value: "Negativo", groupValue: controller.touchResult.value, onChanged: (v) => controller.touchResult.value = v!, activeColor: Colors.red)),
+            ],
           ),
         ],
-        if (type == "Outro") ...[
-          _buildLabel("Atividade (Obrigatório)"),
-          const SizedBox(height: 12),
-          _buildTextField(controller.value1Ctrl, "Ex: Conserto de cerca, Limpeza..."),
-          const SizedBox(height: 20),
-          _buildLabel("Selecionar Rebanho (Opcional)"),
-          const SizedBox(height: 12),
-          _buildHerdSelector(context),
+      );
+    }
+
+    if (type == "Aborto / Perda Gestacional") {
+      final motivos = ["Estresse Térmico Extremo", "Intoxicação por Plantas Tóxicas", "Desnutrição / Privação Hídrica", "Brucelose / Leptospirose / Toxoplasmose", "Traumatismo / Pancada", "Consanguinidade Avançada", "Reação Vacinal / Medicamentosa", "Desconhecida"];
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel("Motivo da Perda"),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: controller.abortionCause.value,
+            items: motivos.map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 12)))).toList(),
+            onChanged: (v) => controller.abortionCause.value = v!,
+            decoration: _inputDecoration(prefixIcon: Icons.heart_broken_outlined),
+            borderRadius: BorderRadius.circular(16),
+          ),
         ],
-        const SizedBox(height: 16),
-        _buildLabel("Observações / Detalhes"),
-        const SizedBox(height: 12),
-        _buildTextField(controller.descriptionCtrl, "Descreva aqui...", maxLines: 3),
+      );
+    }
+
+    if (type == "Produção de Leite") {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel("Quantidade (Litros)"),
+          const SizedBox(height: 8),
+          _buildTextField(
+            controller.value1Ctrl, 
+            "Ex: 12.5", 
+            Icons.opacity, 
+            keyboardType: const TextInputType.numberWithOptions(decimal: true), 
+            suffixText: "L",
+            inputFormatters: [controller.weightMask], // Reusando máscara decimal #.###.1
+          ),
+        ],
+      );
+    }
+
+    if (type == "Nascimento") {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel("Tipo de Parto"),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildRadioTile(label: "Vaginal", value: "Parto Vaginal (Normal)", groupValue: controller.birthType.value, onChanged: (v) => controller.birthType.value = v!)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildRadioTile(label: "Cesárea", value: "Cesárea", groupValue: controller.birthType.value, onChanged: (v) => controller.birthType.value = v!)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildLabel("Idade Gestacional"),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: controller.gestationalAge.value,
+            items: ["Prematuro", "A Termo (no tempo certo)", "Pós-termo"].map((i) => DropdownMenuItem(value: i, child: Text(i))).toList(),
+            onChanged: (v) => controller.gestationalAge.value = v!,
+            decoration: _inputDecoration(prefixIcon: Icons.hourglass_empty_outlined),
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ],
+      );
+    }
+
+    if (type == "Venda de Animal") {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel("Valor da Venda (R\$)"),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller.value2Ctrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [controller.moneyMask],
+            decoration: _inputDecoration(prefixIcon: Icons.payments_outlined),
+          ),
+        ],
+      );
+    }
+
+    if (type == "Abate") {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.red[100]!)),
+            child: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                const SizedBox(width: 12),
+                const Expanded(child: Text("Ao confirmar o abate, o animal será marcado como Inativo e sairá dos índices de reprodução.", style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold))),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (type == "Compra de Animal") {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildLabel("Valor da Compra (R\$)"),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller.value2Ctrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [controller.moneyMask],
+            decoration: _inputDecoration(prefixIcon: Icons.payments_outlined),
+          ),
+        ],
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  void _showHerdSelectionForPurchase(BuildContext context) async {
+    final db = await DatabaseHelper.instance.database;
+    final herds = await db.query('herds');
+
+    Get.bottomSheet(
+      Container(
+        height: Get.height * 0.6,
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+        child: Column(
+          children: [
+            const Text("Selecione o Rebanho", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text("Para onde o animal comprado irá?", style: TextStyle(color: Colors.grey, fontSize: 13)),
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView.separated(
+                itemCount: herds.length,
+                separatorBuilder: (c, i) => const Divider(),
+                itemBuilder: (context, index) {
+                  final h = herds[index];
+                  return ListTile(
+                    leading: const Icon(Icons.other_houses_outlined, color: Colors.green),
+                    title: Text(h['name'].toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text("${h['category']} | ${h['management_type']}"),
+                    onTap: () async {
+                      Get.back();
+                      final result = await Get.toNamed('/add-animal', arguments: {
+                        'herd': h,
+                        'isEdition': false,
+                      });
+                      if (result != null && result is Map<String, dynamic>) {
+                         controller.selectedAnimal.value = result;
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      isScrollControlled: true,
+    );
+  }
+
+  Widget _buildECCSlider(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildLabel("ECC Atual (1.0 - 5.0)"),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(color: Colors.green[800], borderRadius: BorderRadius.circular(20)),
+              child: Obx(() => Text(controller.eccValue.value.toStringAsFixed(1), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: Colors.green[800],
+            thumbColor: Colors.green[800],
+            valueIndicatorColor: Colors.green[800],
+          ),
+          child: Slider(
+            value: controller.eccValue.value,
+            min: 1, max: 5, divisions: 8,
+            onChanged: (v) => controller.eccValue.value = v,
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildFertilityInput() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: controller.value1Ctrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [controller.semenMask],
+            onChanged: controller.validateSemenInput,
+            decoration: _inputDecoration(prefixIcon: Icons.bolt_outlined),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Column(
+          children: [
+            IconButton(icon: const Icon(Icons.add_circle_outline, color: Colors.green), onPressed: controller.incrementFertility),
+            IconButton(icon: const Icon(Icons.remove_circle_outline, color: Colors.green), onPressed: controller.decrementFertility),
+          ],
+        )
+      ],
+    );
+  }
+
+  Widget _buildTextField(TextEditingController ctrl, String hint, IconData icon, {TextInputType? keyboardType, int maxLines = 1, String? suffixText, List<TextInputFormatter>? inputFormatters, Function(String)? onChanged}) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      inputFormatters: inputFormatters,
+      onChanged: onChanged,
+      decoration: _inputDecoration(prefixIcon: icon, suffixText: suffixText, hintText: hint),
+    );
+  }
+
+  Widget _buildRadioTile({required String label, required String value, required String groupValue, required Function(String?) onChanged, Color? activeColor}) {
+    final isSelected = value == groupValue;
+    final themeColor = activeColor ?? Colors.green[800]!;
+    return GestureDetector(
+      onTap: () => onChanged(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? themeColor.withOpacity(0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isSelected ? themeColor : Colors.grey[200]!, width: 2),
+        ),
+        child: Center(
+          child: Text(label, style: TextStyle(color: isSelected ? themeColor : Colors.grey[700], fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnimalSelector(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showAnimalSearch(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey[200]!, width: 1.5)),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Obx(() => Text(
+                controller.selectedAnimal.value != null 
+                  ? "${controller.selectedAnimal.value!['identifier']} (${controller.selectedAnimal.value!['name'] ?? 'S/N'})"
+                  : "Toque para buscar animal...",
+                style: TextStyle(color: controller.selectedAnimal.value == null ? Colors.grey : Colors.black87),
+              )),
+            ),
+            Obx(() => controller.selectedAnimal.value != null
+              ? IconButton(padding: EdgeInsets.zero, constraints: const BoxConstraints(), icon: const Icon(Icons.close, color: Colors.red, size: 20), onPressed: () => controller.selectedAnimal.value = null)
+              : const Icon(Icons.search, color: Colors.grey)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHerdSelector(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showHerdSearch(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey[200]!, width: 1.5)),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Obx(() => Text(
+                controller.selectedHerd.value != null ? controller.selectedHerd.value!['name'] : "Toque para buscar rebanho...",
+                style: TextStyle(color: controller.selectedHerd.value == null ? Colors.grey : Colors.black87),
+              )),
+            ),
+            Obx(() => controller.selectedHerd.value != null
+              ? IconButton(padding: EdgeInsets.zero, constraints: const BoxConstraints(), icon: const Icon(Icons.close, color: Colors.red, size: 20), onPressed: () => controller.selectedHerd.value = null)
+              : const Icon(Icons.search, color: Colors.grey)),
+          ],
+        ),
+      ),
     );
   }
 
@@ -581,11 +697,7 @@ class AddActivityView extends StatelessWidget {
       onTap: () => _showSireSearch(context),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: context.theme.cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[300]!),
-        ),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey[200]!, width: 1.5)),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -602,92 +714,63 @@ class AddActivityView extends StatelessWidget {
     );
   }
 
-  void _showSireSearch(BuildContext context) {
-    final list = controller.potentialSires;
-    var searchList = <Map<String, dynamic>>[].obs;
-    searchList.value = list;
-
+  void _showAnimalSearch(BuildContext context) {
+    controller.searchCategoryFilter.value = "Todos";
+    controller.searchSexFilter.value = "Todos";
+    var query = "".obs;
     Get.bottomSheet(
       Container(
-        height: Get.height * 0.8,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: context.theme.scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-        ),
+        height: Get.height * 0.85,
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
         child: Column(
           children: [
-            const Text("Buscar Reprodutor", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text("Buscar Animal", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            TextField(
-              onChanged: (v) {
-                final q = v.toLowerCase();
-                searchList.value = list.where((a) => 
-                  a['identifier'].toString().toLowerCase().contains(q) ||
-                  (a['name'] ?? "").toString().toLowerCase().contains(q) ||
-                  (a['breed_name'] ?? "").toString().toLowerCase().contains(q) ||
-                  (a['herd_name'] ?? "").toString().toLowerCase().contains(q)
-                ).toList();
-              },
-              decoration: InputDecoration(
-                hintText: "ID do Macho...",
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.grey[100],
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+            TextField(onChanged: (v) => query.value = v, decoration: _inputDecoration(prefixIcon: Icons.search).copyWith(hintText: "ID, Nome, Raça, Rebanho...")),
+            const SizedBox(height: 16),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ...["Todos", "Bovino", "Ovino", "Caprino"].map((c) => Obx(() => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(label: Text(c, style: TextStyle(fontSize: 11, color: controller.searchCategoryFilter.value == c ? Colors.white : Colors.black)), selected: controller.searchCategoryFilter.value == c, onSelected: (_) => controller.searchCategoryFilter.value = c, selectedColor: Colors.green[800]),
+                  ))),
+                  const VerticalDivider(),
+                  ...["Todos", "Macho", "Fêmea"].map((s) => Obx(() => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(label: Text(s, style: TextStyle(fontSize: 11, color: controller.searchSexFilter.value == s ? Colors.white : Colors.black)), selected: controller.searchSexFilter.value == s, onSelected: (_) => controller.searchSexFilter.value = s, selectedColor: Colors.blue[800]),
+                  ))),
+                ],
               ),
             ),
             const SizedBox(height: 16),
             Expanded(
               child: Obx(() {
-                if (searchList.isEmpty) {
+                final results = controller.getFilteredAnimalsList(query.value);
+                if (results.isEmpty) {
                   return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(32.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.bolt_outlined, size: 60, color: Colors.grey[300]),
-                          const SizedBox(height: 16),
-                          const Text(
-                            "Ops! parece que voce ainda não tem animais casdatrados na sua base de dados",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey, fontSize: 14),
-                          ),
-                        ],
-                      ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 48, color: Colors.grey[300]),
+                        const SizedBox(height: 12),
+                        const Text("Nenhum animal encontrado", style: TextStyle(color: Colors.grey)),
+                      ],
                     ),
                   );
                 }
                 return ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  itemCount: searchList.length + 1,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
+                  itemCount: results.length,
+                  separatorBuilder: (c, i) => const Divider(),
                   itemBuilder: (context, index) {
-                    if (index == 0) {
-                      return ListTile(
-                        leading: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle),
-                          child: const Icon(Icons.help_outline, color: Colors.grey),
-                        ),
-                        title: const Text("Reprodutor Desconhecido", style: TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: const Text("Usar sem rastreabilidade do pai"),
-                        onTap: () {
-                          controller.selectedReprodutor.value = {
-                            'id': -1,
-                            'identifier': 'Desconhecido',
-                            'semen_fertility': 1.0
-                          };
-                          Get.back();
-                        },
-                      );
-                    }
-                    final a = searchList[index - 1];
-                    return _buildAnimalCard(context, a, () {
-                      controller.selectedReprodutor.value = a;
-                      Get.back();
-                    });
+                    final a = results[index];
+                    return ListTile(
+                      title: Text(a['identifier'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                      subtitle: Text("${a['name'] ?? 'S/N'} | ${a['breed']} | ${a['herd_name']}"),
+                      onTap: () { controller.selectedAnimal.value = a; Get.back(); },
+                    );
                   },
                 );
               }),
@@ -699,195 +782,101 @@ class AddActivityView extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField(TextEditingController ctrl, String hint, {TextInputType? keyboardType, int maxLines = 1, List<TextInputFormatter>? inputFormatters, String? suffixText}) {
-    return TextField(
-      controller: ctrl,
-      keyboardType: keyboardType,
-      maxLines: maxLines,
-      inputFormatters: inputFormatters,
-      decoration: InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: Colors.grey[50],
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-        suffixText: suffixText,
-      ),
-    );
-  }
-
-  Widget _buildAnimalCard(BuildContext context, Map<String, dynamic> animal, VoidCallback onTap) {
-    final isFemale = animal['sex'] == 'Fêmea';
-    final category = animal['category'] ?? "Bovino";
-    final String status = animal['reproductive_status']?.toString() ?? "Vazia / Apta";
-    final String aptitude = animal['aptitude']?.toString() ?? "";
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey[200]!, width: 1),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-        ),
-        child: Row(
+  void _showHerdSearch(BuildContext context) {
+    var query = "".obs;
+    Get.bottomSheet(
+      Container(
+        height: Get.height * 0.7,
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+        child: Column(
           children: [
-            // Foto ou Ícone (Redondo com Opacidade)
-            Stack(
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                    image: animal['photo_path'] != null && animal['photo_path'].toString().isNotEmpty
-                      ? DecorationImage(image: FileImage(File(animal['photo_path'])), fit: BoxFit.cover)
-                      : DecorationImage(
-                          image: AssetImage(
-                            category == 'Bovino' ? 'assets/images/bovino_default.png' :
-                            category == 'Ovino' ? 'assets/images/ovino_default.png' :
-                            'assets/images/caprino_default.png'
-                          ),
-                          fit: BoxFit.cover,
-                          // Opacidade removida conforme solicitado para o buscador
-                        ),
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                    child: Icon(
-                      isFemale ? Icons.female : Icons.male,
-                      size: 14,
-                      color: isFemale ? Colors.pink[300] : Colors.blue[400],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 16),
-            // Informações
+            const Text("Buscar Rebanho", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            TextField(onChanged: (v) => query.value = v, decoration: _inputDecoration(prefixIcon: Icons.search).copyWith(hintText: "Nome do rebanho...")),
+            const SizedBox(height: 20),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    animal['identifier'],
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (animal['name'] != null && animal['name'].toString().isNotEmpty)
-                    Text(
-                      animal['name'],
-                      style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold, fontSize: 14),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+              child: Obx(() {
+                final res = controller.allHerds.where((h) => h['name'].toString().toLowerCase().contains(query.value.toLowerCase())).toList();
+                if (res.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 48, color: Colors.grey[300]),
+                        const SizedBox(height: 12),
+                        const Text("Nenhum rebanho encontrado", style: TextStyle(color: Colors.grey)),
+                      ],
                     ),
-                  Text(
-                    "${animal['herd_name']} | ${animal['breed']}",
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  // Tags Dinâmicas
-                  if (isFemale) 
-                    _buildStatusTag(status)
-                  else if (aptitude.isNotEmpty)
-                    _buildAptitudeTag(aptitude),
-                ],
-              ),
+                  );
+                }
+                return ListView.separated(
+                  itemCount: res.length,
+                  separatorBuilder: (c, i) => const Divider(),
+                  itemBuilder: (context, index) => ListTile(title: Text(res[index]['name']), subtitle: Text(res[index]['category']), onTap: () { controller.selectedHerd.value = res[index]; Get.back(); }),
+                );
+              }),
             ),
-            const Icon(Icons.chevron_right, color: Colors.black26),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStatusTag(String status) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: () {
-          if (status == "Prenhe") return Colors.pink[50];
-          if (status == "Em Lactação") return Colors.blue[50];
-          if (status == "Inseminada") return Colors.green[50];
-          return Colors.grey[100];
-        }(),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: () {
-            if (status == "Prenhe") return Colors.pink[200]!;
-            if (status == "Em Lactação") return Colors.blue[200]!;
-            if (status == "Inseminada") return Colors.green[200]!;
-            return Colors.grey[300]!;
-          }(),
-          width: 1,
+  void _showSireSearch(BuildContext context) {
+    var query = "".obs;
+    Get.bottomSheet(
+      Container(
+        height: Get.height * 0.8,
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+        child: Column(
+          children: [
+            const Text("Buscar Reprodutor", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            TextField(onChanged: (v) => query.value = v, decoration: _inputDecoration(prefixIcon: Icons.search).copyWith(hintText: "ID ou Nome do Macho...")),
+            const SizedBox(height: 20),
+            Expanded(
+              child: Obx(() {
+                final res = controller.potentialSires.where((s) => s['identifier'].toString().toLowerCase().contains(query.value.toLowerCase())).toList();
+                if (res.isEmpty && query.value.isNotEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 48, color: Colors.grey[300]),
+                        const SizedBox(height: 12),
+                        const Text("Nenhum reprodutor encontrado", style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
+                  );
+                }
+                return ListView.builder(
+                  itemCount: res.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index == 0) return ListTile(title: const Text("Reprodutor Desconhecido"), leading: const Icon(Icons.help_outline), onTap: () { controller.selectedReprodutor.value = {'id': -1, 'identifier': 'Desconhecido', 'semen_fertility': 1.0}; Get.back(); });
+                    final s = res[index-1];
+                    return ListTile(title: Text(s['identifier']), subtitle: Text("${s['name'] ?? 'S/N'} | ${s['breed']}"), onTap: () { controller.selectedReprodutor.value = s; Get.back(); });
+                  },
+                );
+              }),
+            ),
+          ],
         ),
       ),
-      child: Text(
-        status,
-        style: TextStyle(
-          fontSize: 10, 
-          fontWeight: FontWeight.bold,
-          color: () {
-            if (status == "Prenhe") return Colors.pink[800];
-            if (status == "Em Lactação") return Colors.blue[800];
-            if (status == "Inseminada") return Colors.green[800];
-            return Colors.black54;
-          }(),
-        ),
-      ),
+      isScrollControlled: true,
     );
   }
 
-  Widget _buildAptitudeTag(String aptitude) {
-    final isRustico = aptitude == "Rústico";
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: isRustico ? Colors.orange[50] : Colors.indigo[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isRustico ? Colors.orange[200]! : Colors.indigo[200]!,
-          width: 1,
-        ),
+  Widget _buildSaveButton() {
+    return Obx(() => SizedBox(
+      width: double.infinity,
+      height: 60,
+      child: ElevatedButton(
+        onPressed: controller.isLoading.value ? null : controller.saveActivity,
+        style: ElevatedButton.styleFrom(backgroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
+        child: controller.isLoading.value ? const CircularProgressIndicator(color: Colors.white) : const Text("SALVAR REGISTRO TÉCNICO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1.2)),
       ),
-      child: Text(
-        aptitude,
-        style: TextStyle(
-          fontSize: 10, 
-          fontWeight: FontWeight.bold,
-          color: isRustico ? Colors.orange[800] : Colors.indigo[800],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRadioTile({required String label, required String value, required String groupValue, required Function(String?) onChanged, bool isFullWidth = false}) {
-    final isSelected = value == groupValue;
-    return GestureDetector(
-      onTap: () => onChanged(value),
-      child: Container(
-        margin: isFullWidth ? EdgeInsets.zero : const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.green[50] : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? Colors.green[800]! : Colors.grey[300]!, width: isSelected ? 2 : 1),
-        ),
-        child: Center(
-          child: Text(label, style: TextStyle(color: isSelected ? Colors.green[800] : Colors.grey[700], fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
-        ),
-      ),
-    );
+    ));
   }
 }

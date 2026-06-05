@@ -11,50 +11,58 @@ class RebanhoView extends StatelessWidget {
     return Scaffold(
       backgroundColor: context.theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.green[800],
+        backgroundColor: context.theme.scaffoldBackgroundColor,
         elevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CircleAvatar(
+            backgroundColor: Get.isDarkMode ? Colors.white10 : Colors.black.withOpacity(0.05),
+            child: IconButton(
+              icon: Icon(Icons.chevron_left, color: Get.isDarkMode ? Colors.white : Colors.black87),
+              onPressed: () {
+                if (controller.selectedHerds.isNotEmpty) {
+                  controller.clearSelection();
+                } else {
+                  Get.back();
+                }
+              },
+            ),
+          ),
+        ),
         title: Obx(() {
           final isSelecting = controller.selectedHerds.isNotEmpty;
           return Text(
             isSelecting ? "${controller.selectedHerds.length} selecionados" : 'Meus Rebanhos',
-            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(
+              fontWeight: FontWeight.bold, 
+              color: Get.isDarkMode ? Colors.white : Colors.black87,
+              fontSize: 18,
+            ),
           );
         }),
-        leading: IconButton(
-          icon: Obx(() => Icon(controller.selectedHerds.isNotEmpty ? Icons.close : Icons.arrow_back, color: Colors.white)),
-          onPressed: () {
-            if (controller.selectedHerds.isNotEmpty) {
-              controller.clearSelection();
-            } else {
-              Get.back();
-            }
-          },
-        ),
         actions: [
           Obx(() => controller.selectedHerds.isNotEmpty 
-            ? Row(
-                children: [
-                  Checkbox(
-                    value: controller.isAllSelected,
-                    onChanged: (val) => controller.toggleSelectAll(),
-                    activeColor: Colors.white,
-                    checkColor: Colors.red[800],
-                    side: const BorderSide(color: Colors.white, width: 2),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.white),
+            ? Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: CircleAvatar(
+                  backgroundColor: Get.isDarkMode ? Colors.white10 : Colors.black.withOpacity(0.05),
+                  child: IconButton(
+                    icon: Icon(Icons.delete_outline, color: Colors.red[400], size: 20),
                     onPressed: () => _showDeleteConfirmation(),
                   ),
-                ],
+                ),
               )
             : const SizedBox.shrink()),
         ],
         bottom: TabBar(
           controller: controller.tabController,
-          indicatorColor: Colors.white,
+          indicatorColor: Colors.green[800],
           indicatorWeight: 3,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
+          labelColor: Colors.green[800],
+          unselectedLabelColor: Colors.grey,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: const [
             Tab(text: 'Bovinos'),
             Tab(text: 'Ovinos'),
@@ -62,67 +70,78 @@ class RebanhoView extends StatelessWidget {
           ],
         ),
       ),
-      body: Column(
-        children: [
-          // BARRA DE PESQUISA E FILTROS SEMPRE VISÍVEIS
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            color: Colors.white,
-            child: Column(
-              children: [
-                TextField(
-                  onChanged: (v) => controller.searchText.value = v,
-                  decoration: InputDecoration(
-                    hintText: "Buscar rebanho por nome ou galpão...",
-                    prefixIcon: const Icon(Icons.search, size: 20),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
+      body: Container(
+        color: context.theme.scaffoldBackgroundColor,
+        child: Column(
+          children: [
+            const SizedBox(height: 8),
+            // BARRA DE PESQUISA E FILTROS SEMPRE VISÍVEIS
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              color: context.theme.scaffoldBackgroundColor,
+              child: Column(
+                children: [
+                  TextField(
+                    onChanged: (v) => controller.searchText.value = v,
+                    decoration: InputDecoration(
+                      hintText: "Buscar rebanho por nome ou galpão...",
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      filled: true,
+                      fillColor: Get.isDarkMode ? Colors.white10 : Colors.white,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15), 
+                        borderSide: BorderSide(color: Colors.grey[300]!)
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15), 
+                        borderSide: BorderSide(color: Colors.green[800]!, width: 2)
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: ["Todos", "Extensivo", "Semiextensivo", "Intensivo"].map((f) {
-                      return Obx(() {
-                        bool isSelected = controller.selectedFilter.value == f;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: FilterChip(
-                            label: Text(f, style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.grey[700],
-                              fontSize: 12,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            )),
-                            selected: isSelected,
-                            onSelected: (val) => controller.selectedFilter.value = f,
-                            selectedColor: Colors.green[800],
-                            backgroundColor: Colors.grey[200],
-                            checkmarkColor: Colors.white,
-                            shape: StadiumBorder(side: BorderSide(color: isSelected ? Colors.green[800]! : Colors.transparent)),
-                          ),
-                        );
-                      });
-                    }).toList(),
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: ["Todos", "Extensivo", "Semiextensivo", "Intensivo"].map((f) {
+                        return Obx(() {
+                          bool isSelected = controller.selectedFilter.value == f;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: FilterChip(
+                              label: Text(f, style: TextStyle(
+                                color: isSelected ? Colors.white : Colors.grey[700],
+                                fontSize: 12,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              )),
+                              selected: isSelected,
+                              onSelected: (val) => controller.selectedFilter.value = f,
+                              selectedColor: Colors.green[800],
+                              backgroundColor: Colors.grey[200],
+                              checkmarkColor: Colors.white,
+                              shape: StadiumBorder(side: BorderSide(color: isSelected ? Colors.green[800]! : Colors.transparent)),
+                            ),
+                          );
+                        });
+                      }).toList(),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          
-          Expanded(
-            child: TabBarView(
-              controller: controller.tabController,
-              children: [
-                _buildRebanhoList(category: 'Bovino', labelPlural: 'Bovinos', icon: FontAwesomeIcons.cow),
-                _buildRebanhoList(category: 'Ovino', labelPlural: 'Ovinos', icon: Icons.pets),
-                _buildRebanhoList(category: 'Caprino', labelPlural: 'Caprinos', icon: Icons.agriculture),
-              ],
+            
+            Expanded(
+              child: TabBarView(
+                controller: controller.tabController,
+                children: [
+                  _buildRebanhoList(category: 'Bovino', labelPlural: 'Bovinos', icon: FontAwesomeIcons.cow),
+                  _buildRebanhoList(category: 'Ovino', labelPlural: 'Ovinos', icon: Icons.pets),
+                  _buildRebanhoList(category: 'Caprino', labelPlural: 'Caprinos', icon: Icons.agriculture),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       floatingActionButton: Obx(() => controller.selectedHerds.isEmpty 
         ? FloatingActionButton(
@@ -150,6 +169,18 @@ class RebanhoView extends StatelessWidget {
       if (controller.isLoading.value) return const Center(child: CircularProgressIndicator());
 
       if (fullList.isEmpty) {
+        if (controller.searchText.value.isNotEmpty || controller.selectedFilter.value != "Todos") {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.search_off, size: 64, color: Colors.grey[300]),
+                const SizedBox(height: 16),
+                const Text("Nenhum rebanho encontrado para esta busca.", style: TextStyle(color: Colors.grey)),
+              ],
+            ),
+          );
+        }
         return _buildEmptyState(labelPlural, icon, category);
       }
 

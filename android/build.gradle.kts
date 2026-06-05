@@ -7,6 +7,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // Fallback sutil para plugins legados que ainda pedem jcenter
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
     }
 }
 

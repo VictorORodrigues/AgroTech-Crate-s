@@ -39,9 +39,9 @@ class AnimalQRCodeWidget extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           
-          // Geração do QR Code
+          // Geração do QR Code com Link para a Web
           QrImageView(
-            data: animalId,
+            data: "https://agrogen-crateus-2026.web.app/animal/$animalId",
             version: QrVersions.auto,
             size: 150.0,
             backgroundColor: Colors.white,

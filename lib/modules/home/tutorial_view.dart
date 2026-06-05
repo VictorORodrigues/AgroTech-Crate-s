@@ -5,70 +5,101 @@ class TutorialView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = context.isDarkMode;
+    final Color textColor = isDark ? Colors.white : Colors.black87;
+    final Color cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
 
     return Scaffold(
-      backgroundColor: context.theme.scaffoldBackgroundColor,
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFFF5F5F7),
       appBar: AppBar(
-        title: const Text("Central de Ajuda AgroGen", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.green[800],
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CircleAvatar(
+            backgroundColor: isDark ? Colors.white10 : Colors.black.withOpacity(0.05),
+            child: IconButton(
+              icon: Icon(Icons.chevron_left, color: textColor),
+              onPressed: () => Get.back(),
+            ),
+          ),
+        ),
+        title: Text(
+          "Central de Ajuda",
+          style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 18),
+        ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSectionHeader("🚀 GUIA RÁPIDO DE USO", Icons.auto_awesome_outlined),
-            _buildStep("1. Organize seus Rebanhos", "Crie categorias lógicas. Ex: 'Lote de Cria Bovino' ou 'Matrizes Caprinas Crateús'."),
-            _buildStep("2. Cadastro de Animais", "Acesse o rebanho e adicione os animais. Informe dados técnicos como Escore Corporal (ECC) e Linhagem para melhores resultados na IA."),
-            _buildStep("3. IA de Prenhez", "Clique no botão verde na Home para prever o sucesso da inseminação. A IA lerá o clima (THI) de Crateús automaticamente."),
-            _buildStep("4. Melhoramento Genético", "Use o 'Ranking de Reprodutores' para encontrar o macho ideal para sua matriz, evitando consanguinidade."),
-            
-            const Divider(height: 40),
-            
-            _buildSectionHeader("❓ PERGUNTAS FREQUENTES (FAQ)", Icons.help_outline),
-            _buildFAQ("O aplicativo realmente funciona sem internet?", "Sim! Fomos projetados para o produtor rural. Todo o processamento de Machine Learning e o banco de dados rodam localmente no chip do seu celular."),
-            _buildFAQ("O que é o THI e por que ele importa?", "O THI (Índice de Temperatura e Umidade) mede o estresse térmico. Em Crateús, o THI alto pode reduzir a taxa de prenhez em até 40%. Nossa IA avisa o momento exato de adiar o manejo."),
-            _buildFAQ("Como é feito o cálculo do match genético?", "Analisamos o parentesco (linhagem e pai) para bloquear consanguinidade e pontuamos a aptidão do macho (Rústico vs Alta Produção) de acordo com o seu tipo de manejo."),
-            _buildFAQ("Como sincronizo meus dados?", "Sempre que tiver internet, use a opção de 'Backup em Nuvem' nas configurações ou no menu lateral para salvar seus dados nos servidores seguros do AgroGen."),
-
-            const Divider(height: 40),
-
-            _buildSectionHeader("📖 GLOSSÁRIO TÉCNICO", Icons.menu_book_outlined),
-            _buildGlossaryItem("ECC (Escore Corporal)", "Nota de 1 a 5 que mede a reserva de gordura. Animal magro (1-2) não ovula corretamente."),
-            _buildGlossaryItem("Involução Uterina", "Tempo necessário para o útero da fêmea voltar ao normal após o parto."),
-            _buildGlossaryItem("Edge AI", "Inteligência Artificial que processa dados na borda (no dispositivo), sem depender de servidores remotos."),
-
-            const Divider(height: 40),
-
-            _buildSectionHeader("📞 FALE CONOSCO", Icons.support_agent_outlined),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: context.theme.cardColor,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-              ),
-              child: Column(
-                children: [
-                  const Text("Dúvidas ou problemas no campo?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 16),
-                  _buildContactCard(Icons.email_outlined, "E-mail:", "suporte@agrogen.com.br"),
-                  _buildContactCard(Icons.phone_android, "WhatsApp Suporte:", "(88) 99876-5432"),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () => Get.snackbar("Suporte", "Abrindo chamado técnico..."),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[800],
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text("FALAR COM UM VETERINÁRIO", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
+            _buildSectionHeader("🚀 GUIA RÁPIDO", Icons.auto_awesome_outlined),
+            _buildStepCard(
+              "1. Rebanhos", 
+              "Organize seus animais por categorias lógicas no menu principal.",
+              Icons.pets_outlined,
+              Colors.blue
             ),
-            const SizedBox(height: 60),
+            _buildStepCard(
+              "2. Animais", 
+              "Cadastre individualmente com dados de ECC e linhagem para IA precisa.",
+              Icons.add_circle_outline,
+              Colors.green
+            ),
+            _buildStepCard(
+              "4. Manejo Técnico", 
+              "Registre pesagens, vacinas e partos para alimentar o histórico de cada animal.",
+              Icons.assignment_turned_in_outlined,
+              Colors.orange
+            ),
+            _buildStepCard(
+              "5. Rastreabilidade Digital", 
+              "Acesse o QR Code no perfil do animal para gerar um link público de rastreio.",
+              Icons.qr_code_2_outlined,
+              Colors.blueGrey
+            ),
+            _buildStepCard(
+              "6. Mercado e Lucro", 
+              "Acompanhe as cotações regionais e o ROI genético no seu Dashboard.",
+              Icons.trending_up,
+              Colors.teal
+            ),
+            
+            const SizedBox(height: 32),
+            _buildSectionHeader("❓ DÚVIDAS COMUNS", Icons.help_outline),
+            _buildFAQ("Funciona sem internet?", "Sim! O AgroTech processa tudo localmente e sincroniza quando detectar sinal."),
+            _buildFAQ("O que é o THI?", "É o índice de estresse térmico. Se estiver alto, a fertilidade do animal cai drasticamente."),
+            _buildFAQ("Como fazer backup?", "Vá em Perfil > Configurações do Sistema > Sincronizar Agora."),
+            _buildFAQ("Como a IA sugere o reprodutor?", "Analisamos o parentesco para evitar consanguinidade e pontuamos a aptidão do macho de acordo com o seu manejo."),
+            _buildFAQ("O que fazer no THI alto?", "Priorize sombra, aspersão de água e evite manejos estressantes como vacinação ou transporte."),
+            _buildFAQ("Como funciona o QR Code?", "Cada animal tem um link único na nuvem. Ao ler o QR Code, qualquer pessoa (como um comprador) pode ver a ficha técnica e o histórico de vacinas sem precisar baixar o app."),
+            _buildFAQ("O que é o Custo do Ócio?", "É o dinheiro que você perde mantendo uma fêmea vazia. O app calcula isso baseado no custo diário de ração e dias sem produzir cria."),
+            _buildFAQ("Como cadastrar um parto?", "Vá no perfil da fêmea e adicione uma nova atividade do tipo 'Nascimento'. O sistema criará o bezerro automaticamente para você."),
+            _buildFAQ("A IA substitui o veterinário?", "Não! A IA AgroGen é uma ferramenta de suporte à decisão. Ela ajuda a identificar problemas e otimizar janelas de tempo, mas o diagnóstico clínico final deve ser feito por um profissional."),
+            _buildFAQ("Como ver o gráfico de lucro?", "Acesse o menu lateral ou a Home e clique em 'Relatórios'. Lá você verá o fluxo de caixa projetado e o impacto financeiro das suas decisões reprodutivas."),
+            _buildFAQ("O que é o Match Genético?", "É a nossa funcionalidade de recomendação que cruza dados de linhagem do macho e da fêmea para maximizar a heterose (choque de sangue) e evitar doenças genéticas por parentesco."),
+
+            const SizedBox(height: 32),
+            _buildSectionHeader("📖 CONCEITOS TÉCNICOS", Icons.menu_book_outlined),
+            _buildGlossaryBox("ECC", "Escore de Condição Corporal (1 a 5). Mede as reservas energéticas do animal. Ideal para reprodução é entre 3.0 e 4.0."),
+            _buildGlossaryBox("IEP", "Intervalo Entre Partos. O tempo decorrido entre dois nascimentos consecutivos de uma mesma matriz."),
+            _buildGlossaryBox("IPC", "Índice de Inseminações por Concepção. Quantas doses de sêmen são necessárias, em média, para a fêmea emprenhar."),
+            _buildGlossaryBox("THI", "Temperature Humidity Index. Medida técnica do nível de estresse calórico. Acima de 78 indica perigo para a fertilidade."),
+            _buildGlossaryBox("IATF", "Inseminação Artificial em Tempo Fixo. Protocolo hormonal para sincronizar o cio e otimizar o manejo reprodutivo."),
+            _buildGlossaryBox("Heterose", "Também chamado de 'Choque de Sangue'. É o ganho de desempenho obtido através do cruzamento de raças diferentes."),
+            _buildGlossaryBox("GMD", "Ganho Médio Diário. Quantos quilos o animal ganha por dia de vida. Essencial para medir eficiência na engorda."),
+            _buildGlossaryBox("PVE", "Período Voluntário de Espera. Tempo após o parto que o útero precisa para se recuperar antes de uma nova inseminação."),
+            _buildGlossaryBox("Involução Uterina", "Processo natural onde o útero retorna ao tamanho e estado normal após o parto."),
+            _buildGlossaryBox("Score IA", "Pontuação de 0 a 100 gerada pelo nosso algoritmo indicando a prontidão reprodutiva do animal."),
+            _buildGlossaryBox("Linhagem", "Origem genética do animal, rastreando seus ascendentes diretos (Pai, Mãe, Avós)."),
+            _buildGlossaryBox("Edge AI", "Tecnologia de Inteligência Artificial que processa dados pesados no próprio celular, garantindo velocidade e privacidade offline."),
+            _buildGlossaryBox("ROI Genético", "Retorno sobre o Investimento Genético. Cálculo do lucro extra obtido ao usar reprodutores de alta performance."),
+            _buildGlossaryBox("Rastreabilidade", "Capacidade de acompanhar o histórico de um animal desde o nascimento até a venda final via QR Code."),
+            _buildGlossaryBox("Manejo Bioclimático", "Conjunto de ações (sombra, aspersão, horários) para mitigar o impacto do clima no desempenho animal."),
+
+            const SizedBox(height: 80),
           ],
         ),
       ),
@@ -80,23 +111,42 @@ class TutorialView extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 20),
       child: Row(
         children: [
-          Icon(icon, color: Colors.green[800], size: 24),
+          Icon(icon, color: Colors.green[800], size: 20),
           const SizedBox(width: 10),
-          Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Colors.green[900], letterSpacing: 1.1)),
+          Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.green[800], letterSpacing: 1.2)),
         ],
       ),
     );
   }
 
-  Widget _buildStep(String title, String desc) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20, left: 4),
-      child: Column(
+  Widget _buildStepCard(String title, String desc, IconData icon, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Get.context!.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 10))],
+      ),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          const SizedBox(height: 6),
-          Text(desc, style: const TextStyle(color: Colors.grey, fontSize: 13, height: 1.5)),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17, letterSpacing: -0.5)),
+                const SizedBox(height: 6),
+                Text(desc, style: TextStyle(color: Colors.grey[600], fontSize: 13, height: 1.5)),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -106,54 +156,41 @@ class TutorialView extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Get.context!.theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        color: Get.context!.isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
       ),
-      child: ExpansionTile(
-        title: Text(q, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Text(r, style: const TextStyle(color: Colors.grey, fontSize: 13, height: 1.4)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGlossaryItem(String term, String definition) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(color: Colors.black87, fontSize: 13),
+      child: Theme(
+        data: Theme.of(Get.context!).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          title: Text(q, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           children: [
-            TextSpan(text: "$term: ", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-            TextSpan(text: definition, style: const TextStyle(color: Colors.grey)),
+            Text(r, style: TextStyle(color: Colors.grey[600], fontSize: 13, height: 1.5)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildContactCard(IconData icon, String label, String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildGlossaryBox(String term, String def) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.green[800]!.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.green[800]!.withOpacity(0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: Colors.green[800]),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-              Text(text, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-            ],
-          ),
+          Text(term, style: TextStyle(fontWeight: FontWeight.w900, color: Colors.green[900], fontSize: 14, letterSpacing: 0.5)),
+          const SizedBox(height: 4),
+          Text(def, style: TextStyle(color: Get.context!.isDarkMode ? Colors.white70 : Colors.black54, fontSize: 13, height: 1.4)),
         ],
       ),
     );
   }
 }
+

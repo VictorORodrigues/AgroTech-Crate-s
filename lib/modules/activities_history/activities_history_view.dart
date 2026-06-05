@@ -7,18 +7,57 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 class ActivitiesHistoryView extends StatelessWidget {
   final ActivitiesHistoryController controller = Get.put(ActivitiesHistoryController());
 
+  InputDecoration _inputDecoration({IconData? prefixIcon, String? hintText}) {
+    return InputDecoration(
+      hintText: hintText,
+      prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: Colors.green[800], size: 20) : null,
+      filled: true,
+      fillColor: Get.isDarkMode ? Colors.white10 : Colors.white,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15), 
+        borderSide: BorderSide(color: Colors.grey[300]!)
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15), 
+        borderSide: BorderSide(color: Colors.green[800]!, width: 2)
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("Manejo e Atividades", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.green[800],
+        backgroundColor: context.theme.scaffoldBackgroundColor,
+        elevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CircleAvatar(
+            backgroundColor: Get.isDarkMode ? Colors.white10 : Colors.black.withOpacity(0.05),
+            child: IconButton(
+              icon: Icon(Icons.chevron_left, color: Get.isDarkMode ? Colors.white : Colors.black87),
+              onPressed: () => Get.back(),
+            ),
+          ),
+        ),
+        title: Text(
+          "Manejo e Atividades", 
+          style: TextStyle(
+            fontWeight: FontWeight.bold, 
+            color: Get.isDarkMode ? Colors.white : Colors.black87,
+            fontSize: 18,
+          )
+        ),
         bottom: TabBar(
           controller: controller.tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.green[800],
+          labelColor: Colors.green[800],
+          unselectedLabelColor: Colors.grey,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: const [
             Tab(text: 'Bovinos'),
             Tab(text: 'Ovinos'),
@@ -28,22 +67,16 @@ class ActivitiesHistoryView extends StatelessWidget {
       ),
       body: Column(
         children: [
+          const SizedBox(height: 8),
           // BARRA DE BUSCA E FILTROS
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            color: Colors.white,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            color: context.theme.scaffoldBackgroundColor,
             child: Column(
               children: [
                 TextField(
                   onChanged: (v) => controller.searchText.value = v,
-                  decoration: InputDecoration(
-                    hintText: "Buscar por brinco, nome ou tipo...",
-                    prefixIcon: const Icon(Icons.search),
-                    filled: true,
-                    fillColor: Colors.grey[100],
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                  ),
+                  decoration: _inputDecoration(prefixIcon: Icons.search, hintText: "Buscar por brinco, nome ou tipo..."),
                 ),
                 const SizedBox(height: 12),
                 SingleChildScrollView(
@@ -95,13 +128,17 @@ class ActivitiesHistoryView extends StatelessWidget {
     return Obx(() {
       if (controller.isLoading.value) return const Center(child: CircularProgressIndicator());
       if (events.isEmpty) {
+        bool isSearching = controller.searchText.value.isNotEmpty || controller.selectedCategory.value != "Todos";
         return Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.history_outlined, size: 60, color: Colors.grey[300]),
+              Icon(isSearching ? Icons.search_off : Icons.history_outlined, size: 60, color: Colors.grey[300]),
               const SizedBox(height: 16),
-              const Text("Nenhuma atividade registrada", style: TextStyle(color: Colors.grey)),
+              Text(
+                isSearching ? "Nenhuma atividade encontrada para esta busca" : "Nenhuma atividade registrada", 
+                style: const TextStyle(color: Colors.grey)
+              ),
             ],
           ),
         );
@@ -170,11 +207,17 @@ class ActivitiesHistoryView extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(type, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
                   Text(
-                    "Animal: ${event['identifier']} (${event['animal_name'] ?? 'S/N'})",
-                    style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold, fontSize: 12),
+                    type, 
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
+                  if (event['animal_id'] != null)
+                    Text(
+                      "Animal: ${event['identifier']} (${event['animal_name'] ?? 'S/N'})",
+                      style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
                   _buildEventSpecificSummary(event),
                   if (event['description'] != null && event['description'].isNotEmpty) ...[
                     const SizedBox(height: 8),
@@ -242,6 +285,7 @@ class ActivitiesHistoryView extends StatelessWidget {
     if (type.contains("Leite")) return Icons.opacity;
     if (type.contains("Casqueamento")) return Icons.cleaning_services;
     if (type.contains("Tosquia")) return Icons.content_cut;
+    if (type.contains("Toque")) return Icons.search;
     return Icons.event_note;
   }
 }

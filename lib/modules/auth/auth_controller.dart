@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_storage/get_storage.dart';
 import '../../../database/database_helper.dart';
 import '../../services/auth_service.dart';
+import '../../services/sync_service.dart';
 import '../../utils/agro_alerts.dart';
 
 class AuthController extends GetxController {
@@ -150,7 +151,10 @@ class AuthController extends GetxController {
       // 4. Autentica no Firebase com a credencial
       await _authService.signInWithGoogle(credential);
 
-      // 5. Sincronização com DB Local (Lógica Anti-Crash)
+      // 5. Sincronização Imediata (Recuperar dados e status de onboarding ao logar)
+      await SyncService.instance.syncCloudToLocal();
+
+      // 6. Sincronização com DB Local (Lógica Anti-Crash)
       final existingUser = await DatabaseHelper.instance.getUserByEmail(googleUser.email);
       
       if (existingUser == null) {
@@ -159,9 +163,10 @@ class AuthController extends GetxController {
       
       _storage.write('isLoggedIn', true);
       
+      // RECARREGA O STATUS DE ONBOARDING QUE PODE TER SIDO BAIXADO DA NUVEM
       bool onboardingCompleted = _storage.read('onboardingCompleted') ?? false;
       if (onboardingCompleted) {
-        Get.offAllNamed('/home');
+        Get.offAllNamed('/navigation');
       } else {
         Get.offAllNamed('/onboarding');
       }
@@ -208,14 +213,16 @@ class AuthController extends GetxController {
         return;
       }
 
-      // 3. Sincroniza com DB Local se necessário
+      // 3. Sincroniza com DB Local e Nuvem
+      await SyncService.instance.syncCloudToLocal();
       await DatabaseHelper.instance.loginUser(email, password);
       
       _storage.write('isLoggedIn', true);
       
+      // Verifica se o download da nuvem confirmou o onboarding
       bool onboardingCompleted = _storage.read('onboardingCompleted') ?? false;
       if (onboardingCompleted) {
-        Get.offAllNamed('/home');
+        Get.offAllNamed('/navigation');
       } else {
         Get.offAllNamed('/onboarding');
       }
